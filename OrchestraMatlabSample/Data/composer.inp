@@ -5,7 +5,7 @@ Font:  13
 
 File: Documentation 	null 	documentation.inp
 HFile: outputformat 	null 	outputformat.txt
-CHEMFile: Chemistry 	null 	chemistry1.inp
+CHEMFile: Chemistry 	null 	chemistry.inp
 HFile: Column 	null 	column.dat
 File: Input 	null 	input.dat
 File: Output 	null 	output.dat

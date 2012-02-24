@@ -1,4 +1,4 @@
-function result = RunOrchestraInterface(chemistryFilePath, varDefinitionTable, ioVariableList, inputVar, inputVarVal)
+function [orchestraInstance, loopVarsOut] = InitializeOrchestraInterface(chemistryFilePath, varDefinitionTable, ioVariableList, loopVars)
     % Run ORCHESTRA model using MATLAB-Java interface for ORCHESTRA.
     % Inputs:
     %   * chemistryFilePath - a path to file defining a chemistry for the
@@ -8,28 +8,28 @@ function result = RunOrchestraInterface(chemistryFilePath, varDefinitionTable, i
     %   default values (numeric values);
     %   * ioVariableList - a M-element column-cell-vector defining a list
     %   of IO variables for the model;
-    %   * inputVar - name or index of an IO variable in ioVariableList
-    %   vector to loop over (if index, it must be in a range from 1 to M);
-    %   * inputVarVal - 1-D vector of K values for the IO variable with
-    %   index inputVarIdx.
+    %   * loopVars - cell array of names of IO variables loop over.
     % Output:
-    %   result - K-by-M array of values for M IO variables corresponding to
-    %   K different values of an IO variable with index inputVarIdx.
+    %   * orchestraInstance - an instance of ORCHESTRA interface object
+    %   which is initialized and will be used later for computations;
+    %   * loopVarsOut - array of structures with fields 'name', 'index'
+    %   storing names of loop variables and their indices to be used for
+    %   setting values for calculations.
 
-    if ischar(inputVar)
-        inputVarIdx = -1;
+    loopVarsOut = struct('name', {}, 'index', {});
+    loopVarsOut = repmat(loopVarsOut, [1, numel(loopVars)]);
+    
+    for varIdx = 1:numel(loopVars)
+        loopVarsOut(varIdx).name = loopVars{varIdx};
+        loopVarsOut(varIdx).index = -1;
         for i = 1:numel(ioVariableList)
-            if (strcmp(ioVariableList{i}, inputVar))
-                inputVarIdx = i;
+            if (strcmp(ioVariableList{i}, loopVarsOut(varIdx).name))
+                loopVarsOut(varIdx).index = i;
             end
         end
-        if (inputVarIdx < 0)
-            error('%s - no such IO variable!', inputVar);
+        if (loopVarsOut(varIdx).index < 0)
+            error('%s - no such IO variable!', loopVarsOut(varIdx).name);
         end
-    elseif isnumeric(inputVar)
-        inputVarIdx = inputVar;
-    else
-        error('Wrong format for setting IO variable!');
     end
     
     % First we have to change current directory to the directory containing
@@ -55,11 +55,9 @@ function result = RunOrchestraInterface(chemistryFilePath, varDefinitionTable, i
         numVars = size(varDefinitionTable, 1);
         ioIndices = ~ismember(ioVariableList, varDefinitionTable(:, 1));
         ioVariableListToNode = ioVariableList(ioIndices);
-        numIoVars = numel(ioVariableList);
         numIoVarsToNode = numel(ioVariableListToNode);
         
         variableList = NodeVariableInfoList(numVars + numIoVarsToNode);
-%         variableList = NodeVariableInfoList(numVars);
         
         % Then we define the set of variables that is stored in each Node of
         % this type. We give each variable a name, default value, indicate if
@@ -76,16 +74,6 @@ function result = RunOrchestraInterface(chemistryFilePath, varDefinitionTable, i
         % Initialize ORCHESTRA object
         orchestraInstance = OrchestraModule(chemistryFileName, variableList, ioVariableList);
 
-        % Initialize results
-        result = zeros(numIoVars, numel(inputVarVal));        
-        
-        for idx = 1:numel(inputVarVal)
-            % Run calculation method. it's inputs are:
-            % - vector of indices of IO variables to be set (as in variable list);
-            % - vector of values to be set for such variables;
-            result(:, idx) = orchestraInstance.Calculate(inputVarIdx, inputVarVal(idx));
-        end
-        
     catch err
         
         cd(workingDir);
@@ -96,5 +84,4 @@ function result = RunOrchestraInterface(chemistryFilePath, varDefinitionTable, i
     % Go back to original working directory
     cd(workingDir);
     
-    result = result';
 end

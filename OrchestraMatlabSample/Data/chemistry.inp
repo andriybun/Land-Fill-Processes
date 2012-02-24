@@ -1,4 +1,4 @@
-//********* Version Version: 16 Januari 2012 11:14  *******
+//********* Version 25 May 2011 10:19  *******
 @logactivities:  // Indicates that this version uses log activities for entities.  (name.logact) 
 
 // Adding   @forceLogKreactions:   here will force the graphical editor to rewrite all reactions in log K format.  
@@ -149,4 +149,4 @@
 //********* Adsorption Models *******
 
 //********* End of Adsorption Models *******
-//********* add @userfriendlyformat: to get output of reactions in user friendly format *******
+//********* add @userfriendlyformat: to get ouput of reactions in user friendly format *******

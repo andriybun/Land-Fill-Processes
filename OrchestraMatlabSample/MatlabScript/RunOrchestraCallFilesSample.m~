@@ -27,14 +27,18 @@ function RunOrchestraCallFilesSample()
     hAcetateCon = 0.01:0.01:0.1;
     
     % Initialize results
-    result = zeros(numel(hAcetateCon), numel(ioVariableList));
+    result = zeros(numel(ioVariableList), numel(hAcetateCon));
     
     for idx = 1:numel(hAcetateCon)
         % Run calculation method. it's inputs are:
         % - vector of indices of IO variables to be set (as in variable list);
         % - vector of values to be set for such variables;
-        result(idx, :) = orchestraInstance.Calculate(loopVars(1).index, hAcetateCon(idx));
+        result(:, idx) = orchestraInstance.Calculate(loopVars., inputVarVal(idx));
     end
+    
+    
+    % Call Orchestra interface
+    result = RunOrchestraInterface(chemistryFilePath, varDefinitionTable, ioVariableList, loopVars{1}, [0.01:0.01:0.1]);
     
     disp(ioVariableList');
     disp(result);

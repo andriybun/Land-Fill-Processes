@@ -22,14 +22,26 @@ function RunOrchestraCallSample()
         'pH'
         };
     
-    % Then specify the name or index of IO variable we want to have a loop over
-    hAcetateIdx = 1;
+    % Initialize Orchestra interface
+    [orchestraInstance, loopVars] = InitializeOrchestraInterface(chemistryFilePath, varDefinitionTable, ioVariableList, {'H[Acetate].liter'});
     
-    % And finally define the range of values for this variable
-    hAcetateVal = 0.01:0.01:0.1;
+    % Now you have an instance of the ORCHESTRA object initialized and may
+    % call its method Calculate whenever needed.
+    % This is one of the possibilities:
     
-    % Call Orchestra interface
-    result = RunOrchestraInterface(chemistryFilePath, varDefinitionTable, ioVariableList, hAcetateIdx, hAcetateVal);
+    % Create a vector of values for one of our loop vars
+    hAcetateCon = 0.01:0.01:0.1;
     
+    % Initialize results
+    result = zeros(numel(hAcetateCon), numel(ioVariableList));
+    
+    for idx = 1:numel(hAcetateCon)
+        % Run calculation method. it's inputs are:
+        % - vector of indices of IO variables to be set (as in variable list);
+        % - vector of values to be set for such variables;
+        result(idx, :) = orchestraInstance.Calculate(loopVars(1).index, hAcetateCon(idx));
+    end
+    
+    disp(ioVariableList');
     disp(result);
 end

@@ -2,8 +2,11 @@ function [chemistryFilePath, varDefinitionTable, ioVariableList] = ParseOrchestr
     % Parse ORCHESTRA model files and prepare inputs for running model from
     % MATLAB
 
-    %% Parse colum.dat file with basic varialbes and file names
-    [fileNames, iniVarDefinitionTable] = ParseColumnDat([modelDir 'column.dat']);
+    %% Parse composer.inp with main file names
+    fileNames = ParseComposer([modelDir 'composer.inp']);
+    
+    %% Parse colum file with basic varialbes
+    iniVarDefinitionTable = ParseColumn([modelDir fileNames.columndat]);
 
     chemistryFilePath = ['/' modelDir fileNames.chemistry];
 
@@ -15,18 +18,49 @@ function [chemistryFilePath, varDefinitionTable, ioVariableList] = ParseOrchestr
     %% Parse file with the list of IO variables
     [ioVariableList, ~] = ReadVariables([modelDir fileNames.outputformat]);
     
-    %% End
     return
 
-    
-    
-    %% Nested functions
-    function [files, varsList] = ParseColumnDat(fileName)
-        columnFile = textread(fileName, '%s', 'delimiter', '\n');    
+    %% Functions for parsing model parameters
+    function files = ParseComposer(fileName)
+        composerFile = textread(fileName, '%s', 'delimiter', '\n');    
         
         varsList = { };
         
         files = struct();
+        
+        for i = 1:numel(composerFile)
+            line = composerFile{i};
+            
+            % Skip lines that are: empty, commments
+            if (isempty(line) || (strcmp(line(1:2), '//')))
+                continue
+            end
+            
+            % Split strings to a separate words
+            tk = TokenizeString(line);
+            
+            if (strcmp(tk{1}, 'HFile:') && strcmp(tk{2}, 'outputformat'))
+                files.outputformat = tk{end};
+            end
+            
+            if (strcmp(tk{1}, 'CHEMFile:') && strcmp(tk{2}, 'Chemistry'))
+                files.chemistry = tk{end};
+            end
+            
+            if (strcmp(tk{1}, 'HFile:') && strcmp(tk{2}, 'Column'))
+                files.columndat = tk{end};
+            end
+            
+            if (strcmp(tk{1}, 'File:') && strcmp(tk{2}, 'Input'))
+                files.input = tk{end};
+            end
+        end
+    end
+    
+    function varsList = ParseColumn(fileName)
+        columnFile = textread(fileName, '%s', 'delimiter', '\n');    
+        
+        varsList = { };
         
         for i = 1:numel(columnFile)
             line = columnFile{i};
@@ -41,18 +75,6 @@ function [chemistryFilePath, varDefinitionTable, ioVariableList] = ParseOrchestr
             
             if (strcmp(tk{1}, '@Var:'))
                 varsList = vertcat(varsList, [tk(2), str2double(tk(3))]);
-            end
-            
-            if (strcmp(tk{1}, '@include:'))
-                files.input = tk{2};
-            end
-            
-            if (strcmp(tk{1}, '@include_global_vars:'))
-                files.chemistry = [tk{2} '.inp'];
-            end
-            
-            if (strcmp(tk{1}, '@include_vars:') && strcmp(tk{2}(end-3:end), '.txt'))
-                files.outputformat = tk{2};
             end
         end
     end
