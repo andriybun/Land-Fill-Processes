@@ -1,0 +1,152 @@
+//********* Version Version: 16 Januari 2012 11:14  *******
+@logactivities:  // Indicates that this version uses log activities for entities.  (name.logact) 
+
+// Adding   @forceLogKreactions:   here will force the graphical editor to rewrite all reactions in log K format.  
+// Adding   @forceLinKreactions:   here will force the graphical editor to rewrite all reactions in linear K format. 
+
+//********* The database file(s) *******
+// This section list the database files that are used by the interactive chemistry editor
+// Syntax for local files:                   @database: minteq.txt
+// Syntax for files on the internet:         @database: www.meeussen.nl/orchestra/minteqv4.txt
+
+@database: www.meeussen.nl/orchestra/minteqv4.txt
+@database: www.meeussen.nl/orchestra/adsmodels.txt
+//********* End of the database file(s) *******
+
+
+//********* Generate output variables  *******
+@output(pH)
+@output(Aragonite.tot)
+@output(Ca+2.con)
+@output(CO3-2.con)
+@output(HCO3-.con)
+@output(H2CO3.con)
+@output(CO2[g].con)
+@output(H[Acetate].con)
+@output(Acetate-.con)
+//********* End of output variables  *******
+
+
+
+//********* The variables *******
+@globalvar: H2O.logact 0
+@Var: CLAY_kgl 0.0  //   
+@Var: CO2[g].act 1.0  //   
+@Var: DFA_kgl 0.0  //   
+@Var: DHA_kgl 0.0  //   
+@Var: H+.act 1.0  //   
+@Var: H+.logact 1.0  //  **
+@Var: HFO_kgl 0.0  //   
+@Var: LS 1.0  //   
+@Var: SFA_kgkg 0.0  //   
+@Var: SHA_kgkg 0.0  //   
+@Var: density 1.0  //   
+@Var: e-.act 1.0  //   
+@Var: gasvolume 1.0  //   
+@Var: pCO2[g] 2.0  //   
+@Var: pH 7.0  //   
+@Var: pe 1.0  //   
+@Var: porosity 1.0  //   
+@Var: totvolume 1.0  //   
+@Var: watervolume 1.0  //   
+//********* End of the variables *******
+
+
+//********* The extra expressions *******
+//*  The format of extra expressions is: 
+//*  Stage:(1,"expression") 
+//* (Stage: is used instead of Calc: here to prevent interpretation by the GUI.)
+//*  For the calculations Stage: and Calc: are equivalent.
+//********* End of the extra expressions *******
+
+//********* The phases *******
+@phase(part)
+@phase(tot)
+@phase(liter)
+@link_phase(liter, tot, "watervolume")
+@phase(ads)
+@link_phase(ads, liter, "1")
+@phase(CLAY_part)
+@link_phase(CLAY_part, ads, "1")
+@phase(DHA_part)
+@link_phase(DHA_part, ads, "1")
+@phase(HA_part)
+@link_phase(HA_part, DHA_part, "DHA_kgl")
+@phase(DFA_part)
+@link_phase(DFA_part, ads, "1")
+@phase(FA_part)
+@link_phase(FA_part, DFA_part, "DFA_kgl")
+@phase(HFO_part_l)
+@link_phase(HFO_part_l, ads, "1")
+@phase(HFO_part)
+@link_phase(HFO_part, HFO_part_l, "HFO_kgl")
+@phase(diss)
+@link_phase(diss, liter, "1")
+@phase(min)
+@link_phase(min, liter, "1")
+@phase(gas)
+@link_phase(gas, liter, "gasvolume")
+//********* End of the phases *******
+
+// The uiobjects1 class can be used to add user defined content. 
+// It is literally read and written by the GUI.
+@class: uiobjects1(){%
+   @include: www.meeussen.nl\orchestra\objects2011.txt
+%}
+@uiobjects1()
+
+@davies(.1)
+
+//********* The primary entities *******
+@gas(CO2[g])
+@primary_entity(CO2[g], -9.0, tot, 1.0E-9)
+@species(Ca+2, 2)
+@primary_entity(Ca+2, -9.0, liter, 1.0E-9)
+@Global: pH
+@Var: H+.logact  1 **
+@Calc:(1, "H+.logact = -pH")
+@species(H+, 1)
+@primary_entity(H+, pH, -7.0, lin, 0.1, liter, 1.0E-9)
+@entity(H2O, diss, 55.6 )
+@primary_entity(H2O, 0.0)
+@species(H[Acetate], 0)
+@primary_entity(H[Acetate], -9.0, liter, 1.0E-9)
+//******************************
+
+//********* The entities *******
+
+@species(Acetate-, -1)
+@reaction(Acetate-,  1.74985e-5  , -1.0, H+, 1.0, H[Acetate])
+@species(CO3-2, -2)
+@reaction(CO3-2,  7.12853e-19 , 1.0, CO2[g], -2.0, H+, 1.0, H2O)
+@species(Ca[Acetate]+, 1)
+@reaction(Ca[Acetate]+,  2.64850e-4  , 1.0, Ca+2, -1.0, H+, 1.0, H[Acetate])
+@species(H2CO3, 0)
+@reaction(H2CO3,  3.41979e-2  , 1.0, CO2[g], 1.0, H2O)
+@species(HCO3-, -1)
+@reaction(HCO3-,  1.52055e-8  , 1.0, CO2[g], -1.0, H+, 1.0, H2O)
+@species(OH-, -1)
+@reaction(OH-,  1.00693e-14 , -1.0, H+, 1.0, H2O)
+
+@class: extra_entities(){%
+ // Here you can put some arbitrary extra code.   
+%}
+@extra_entities()
+
+
+
+
+//********* The minerals *******
+// This version can use external mineral files.
+
+// Syntax: @xternal_mineral_file: name.txt
+@mineral(Aragonite)
+@reaction(Aragonite,  1.42233e-10 , 1.0, CO2[g], 1.0, Ca+2, -2.0, H+, 1.0, H2O)
+@Calc: (1, "Aragonite.si2 = 4.0") 
+//********* End of the minerals *******
+
+
+//********* Adsorption Models *******
+
+//********* End of Adsorption Models *******
+//********* add @userfriendlyformat: to get output of reactions in user friendly format *******

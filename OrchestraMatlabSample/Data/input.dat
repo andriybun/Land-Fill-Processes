@@ -1,0 +1,5 @@
+Var:		Ca+2.liter	H+.liter	CO2[g].tot	H[Acetate].liter
+Data:		1		-2.5		11		0.01
+
+//Sweep: 25
+//Swept: H[Acetate].liter 0.01 1 lin
