@@ -28,7 +28,7 @@ function main()
     %% Preparing data for simulation:
     
     % Get spatial characteristics of a landfill:
-    [spatial, ~, column_height_array] = define_geometry();
+    [spatial, is_landfill_array, column_height_array] = define_geometry();
     
     % Determine probability distribution parameters corresponding to
     % defined inputs:
@@ -44,6 +44,8 @@ function main()
     residual_time_array(velocity_non_zero_array == 1) = column_height_array(velocity_non_zero_array == 1) ./ velocity_array(velocity_non_zero_array == 1);
     
 %%% TODO: try different variants (floor, ceil, round)
+%%% TODO: if water reaches last column and can't flow further down, but can
+%%%       flow sidewards and then down...
     residual_time_array = ceil(residual_time_array / time_discretization);	% Discretized residual time in number of time intervals
 
     % Generate biogeochemical properties:
