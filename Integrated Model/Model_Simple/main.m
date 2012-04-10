@@ -1,7 +1,12 @@
 function main()
 
-    clc;
+%   Integrated modelling framework for landfills
+%
+%   Features:
 
+    clc;
+    addpath('../Common/')
+    
     %% Input parameters:
     
     % Time

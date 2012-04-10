@@ -1,7 +1,12 @@
 function main()
 
+%   Integrated modelling framework for landfills
+%
+%   Features:
+%     - mass exchange between pathways;
+
     clc;
-    addpath('Common')
+    addpath('../Common/')
 
     %% Input parameters:
     
