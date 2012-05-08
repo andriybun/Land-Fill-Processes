@@ -12,6 +12,12 @@ function precipitation_intensity = generate_precipitation_data(start_date, max_d
     % Initialize some arrays
     interval_months = zeros(1, num_intervals);
     is_precipitation = (rand(1, num_intervals) <= rainy_time_fraction); % Occurrence of a rainfall event during interval
+    
+    %% STUB: single input pulse
+    is_precipitation = zeros(1, num_intervals);
+    is_precipitation(1:10) = 1;
+    %% END STUB
+    
     precipitation_intensity = zeros(1, num_intervals);
     
     % Number of days and then intervals in the first month
