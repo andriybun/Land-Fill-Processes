@@ -13,7 +13,7 @@ function main()
     start_date = struct();
     start_date.month = 1;
     start_date.day = 1;
-    max_days = 365;                                         % number of simulation days
+    max_days = 30; % 365;                                         % number of simulation days
     time_discretization = 3600;                             % in seconds
     intervals_per_day = 24 * 3600 / time_discretization;
     num_intervals = max_days * intervals_per_day;           % in {time step}
@@ -73,6 +73,13 @@ function main()
     end
     
     plot(leachate_out);
+    
+    data = struct();
+    data.t = time_discretization : time_discretization : num_intervals * time_discretization;
+    data.in = precipitation_in_time_vector;
+    data.out = leachate_out;
+    
+    save('data.mat', '-struct', 'data');
     
     return
     

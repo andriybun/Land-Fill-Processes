@@ -1,22 +1,19 @@
-function precipitation_intensity = generate_precipitation_data(start_date, max_days, time_discretization)
-
-%     %% STUB:
-%     [start_date, max_days, time_discretization] = stub();
-%     %% END STUB
+function precipitation_intensity = generate_precipitation_data(start_date, time_params)
     
     rainy_time_fraction = 0.06;
     
-    intervals_per_day = 24 * 3600 / time_discretization;
-    num_intervals = max_days * intervals_per_day;
+    num_intervals = time_params.num_intervals;
+    intervals_per_day = time_params.intervals_per_day;
+    max_days = time_params.max_days;
     
     % Initialize some arrays
     interval_months = zeros(1, num_intervals);
     is_precipitation = (rand(1, num_intervals) <= rainy_time_fraction); % Occurrence of a rainfall event during interval
     
-    %% STUB: single input pulse
-    is_precipitation = zeros(1, num_intervals);
-    is_precipitation(1:10) = 1;
-    %% END STUB
+%     %% STUB: single input pulse
+%     is_precipitation = zeros(1, num_intervals);
+%     is_precipitation(1:10) = 1;
+%     %% END STUB
     
     precipitation_intensity = zeros(1, num_intervals);
     
@@ -39,7 +36,7 @@ function precipitation_intensity = generate_precipitation_data(start_date, max_d
     
     precipitation_intensity = precipitation_statistics(interval_months) ./ month_length(interval_months) / ...
         intervals_per_day / rainy_time_fraction;
-    precipitation_intensity = precipitation_intensity .* is_precipitation;
+    precipitation_intensity = precipitation_intensity .* is_precipitation * 1e-3;
     
     return
     
