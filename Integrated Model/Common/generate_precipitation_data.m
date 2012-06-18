@@ -12,7 +12,7 @@ function precipitation_intensity = generate_precipitation_data(start_date, time_
     
 %     %% STUB: single input pulse
 %     is_precipitation = zeros(1, num_intervals);
-%     is_precipitation(1:10) = 1;
+%     is_precipitation(1:1) = 1;
 %     %% END STUB
     
     precipitation_intensity = zeros(1, num_intervals);
