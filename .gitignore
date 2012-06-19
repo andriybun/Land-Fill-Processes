@@ -1,5 +1,6 @@
 .directory
 *.*~
+*.asv
 try_*
 *.mat
  

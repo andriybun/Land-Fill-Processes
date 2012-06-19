@@ -14,6 +14,7 @@ function main_transfer_function()
     
     % Time
     start_date = struct();
+    start_date.year = 2012;
     start_date.month = 1;
     start_date.day = 1;
     time_params.max_days = 30; % 365;                                                           % number of simulation days
@@ -24,9 +25,10 @@ function main_transfer_function()
     time_params.days_elapsed = (0 : 1: (num_intervals-1)) / time_params.intervals_per_day;
     
     % Fluid velocity parameters
-    hydraulic_params.k_sat = 1e-4;                                           % m / s
-    hydraulic_params.theta_r = 0.102;
-    hydraulic_params.theta_s = 0.368;
+    hydraulic_params.k_sat = 1e-4;                      % m / s
+    hydraulic_params.theta_r = 0.102;                   % residual water content
+    hydraulic_params.theta_s = 0.368;                   % saturated water content
+    hydraulic_params.d = 1;                             % diffusion_coefficient
 %     expected_fluid_velocity = ...
 %         expected_fluid_velocity_mps * time_discretization;  % m / {time step}
 %     variance = 3 * expected_fluid_velocity;                 % 95% confidence interval width
@@ -44,19 +46,25 @@ function main_transfer_function()
     
     % Generate precipitation data (specific, independent of area):
     rand('seed', 1);
-    precipitation_intensity_time_vector = generate_precipitation_data(start_date, time_params);
+%     precipitation_intensity_time_vector = generate_precipitation_data(start_date, time_params);
+%     file_name = '../Data/precipitation_daily_KNMI_20110908.txt';
+%     [precipitation_intensity_time_vector, time_params, start_date] = read_precipitation_data_csv(file_name);
+    file_name = '../Data/precip_braambergen.mat';
+    [precipitation_intensity_time_vector, time_params, start_date] = read_precipitation_data_braambergen(file_name);
+    
     % Net amounts of precipitation from rainfall events entering each column / pathway:
-    precipitation_in_time_vector = precipitation_intensity_time_vector * (spatial_params.dx * spatial_params.xn * spatial_params.dy * spatial_params.yn);
+    precipitation_in_time_vector = precipitation_intensity_time_vector * ...
+        (spatial_params.dx * spatial_params.xn * spatial_params.dy * spatial_params.yn);
     
     % Array specifying amounts of leachate leaving the landfill
-	leachate_out_array = zeros(num_intervals, spatial_params.xn, spatial_params.yn);
-    leachate_out_array_old = zeros(num_intervals, spatial_params.xn, spatial_params.yn);
-    leachate_out = zeros(1, num_intervals);
+	leachate_out_array = zeros(time_params.num_intervals, spatial_params.xn, spatial_params.yn);
+    leachate_out_array_old = zeros(time_params.num_intervals, spatial_params.xn, spatial_params.yn);
+    leachate_out = zeros(1, time_params.num_intervals);
     
-    se_column = zeros(1, num_intervals);
+    se_column = zeros(1, time_params.num_intervals);
     
     %% Main loop over time
-    for t = 1:num_intervals
+    for t = 1:time_params.num_intervals
         in_flux = precipitation_in_time_vector(t); % * time_params.time_discretization;
         if (precipitation_in_time_vector(t) > 0)
             [breakghrough_tmp, breakthrough_tmp_old, properties_array] = transport_lognormal(t, ...
@@ -78,7 +86,7 @@ function main_transfer_function()
         
         % Display progress
         if (mod(t, 1000) == 0)
-            disp (t / num_intervals * 100);
+            disp (t / time_params.num_intervals * 100);
         end
     end
 
@@ -116,7 +124,7 @@ function main_transfer_function()
         mu_old = zeros(size(spatial_params.column_height_array));
         sigma_old = zeros(size(spatial_params.column_height_array));
         [mu_old(idx_calc), sigma_old(idx_calc)] = lognrnd_param_definer.get_params(...
-            hydraulic_params.k_sat ./ spatial_params.column_height_array(idx_calc), 0.5);
+            hydraulic_params.k_sat ./ spatial_params.column_height_array(idx_calc), 0.7);
         breakthrough_old = zeros(num_intervals - t + 1, size(mu_old, 1), size(mu_old, 2));
         % Leave breakthrough_old(1, :, :) = 0;
         for t_idx = 2:num_intervals - t + 1
@@ -136,4 +144,19 @@ function main_transfer_function()
 %         new_se = min(0.999, new_se);
 %         new_se = max(0.12, new_se);
     end
+
+    %% TODO:
+    function res = solute_transport(breakthrough, spatial_params, hydraulic_params, time_params)
+        
+        d = hydraulic_params.d;
+        dt = time_params.time_discretization;
+        l = spatial_params.column_height_array;
+        
+        v = 1 ./ dt;
+        
+        solute_concentration = -(1 ./ 2) .* erf((1 ./ 2) .* (-x + v .* dt) ./ (sqrt(dt) .* sqrt(d))) + ...
+            (1 ./ 2) .* erf((1 ./ 2) .* (-x + l + v .* dt) ./ (sqrt(dt) .* sqrt(d)));
+    end
+
+    
 end
