@@ -47,10 +47,10 @@ function main_transfer_function()
     % Generate precipitation data (specific, independent of area):
     rand('seed', 1);
 %     precipitation_intensity_time_vector = generate_precipitation_data(start_date, time_params);
-%     file_name = '../Data/precipitation_daily_KNMI_20110908.txt';
-%     [precipitation_intensity_time_vector, time_params, start_date] = read_precipitation_data_csv(file_name);
-    file_name = '../Data/precip_braambergen.mat';
-    [precipitation_intensity_time_vector, time_params, start_date] = read_precipitation_data_braambergen(file_name);
+    file_name = '../Data/precipitation_daily_KNMI_20110908.txt';
+    [precipitation_intensity_time_vector, time_params, start_date] = read_precipitation_data_csv(file_name);
+%     file_name = '../Data/precip_braambergen.mat';
+%     [precipitation_intensity_time_vector, time_params, start_date] = read_precipitation_data_braambergen(file_name);
     
     % Net amounts of precipitation from rainfall events entering each column / pathway:
     precipitation_in_time_vector = precipitation_intensity_time_vector * ...
@@ -95,6 +95,10 @@ function main_transfer_function()
     hold on;
     plot(time_params.days_elapsed, leachate_out);
     plot(time_params.days_elapsed, leachate_out_old, 'g');
+    legend('mu, sigma variable', 'mu, sigma constant');
+    axis([time_params.days_elapsed(1) time_params.days_elapsed(end) 0 6]);
+    xlabel('Days');
+    ylabel('Total outflux, m');
     hold off;
     
     return
@@ -119,6 +123,9 @@ function main_transfer_function()
             breakthrough(t_idx, (idx_calc)) = scale * time_discretization * exp(-(log(t_vector(t_idx)) - mu(idx_calc)).^2 ./ ...
                 (2 .* sigma(idx_calc) .* sigma(idx_calc))) ./ (sqrt(2 * pi) .* sigma(idx_calc) .* t_vector(t_idx));
         end
+%         properties_array.mean_v = zeros(size(spatial_params.column_height_array));
+%         properties_array.mean_v(idx_calc) = scale * time_discretization ./ t_vector(t_idx) .* ...
+%             exp(mu(idx_calc) + sigma(idx_calc) .* sigma(idx_calc) ./ 2);
         
         %% For comparison
         mu_old = zeros(size(spatial_params.column_height_array));
@@ -146,13 +153,14 @@ function main_transfer_function()
     end
 
     %% TODO:
-    function res = solute_transport(breakthrough, spatial_params, hydraulic_params, time_params)
+    function res = solute_transport(properties_array, spatial_params, hydraulic_params, time_params)
         
         d = hydraulic_params.d;
         dt = time_params.time_discretization;
         l = spatial_params.column_height_array;
+        v = properties_array.mean_v;
         
-        v = 1 ./ dt;
+        
         
         solute_concentration = -(1 ./ 2) .* erf((1 ./ 2) .* (-x + v .* dt) ./ (sqrt(dt) .* sqrt(d))) + ...
             (1 ./ 2) .* erf((1 ./ 2) .* (-x + l + v .* dt) ./ (sqrt(dt) .* sqrt(d)));

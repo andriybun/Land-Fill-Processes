@@ -26,7 +26,7 @@ function [precipitation_intensity, time_params, start_date] = read_precipitation
     out.precipitation = out.precipitation * ((sum(out.precipitation) - sum(out.evaporation)) / sum(out.precipitation));
     
     % Adjust time_params
-    time_params.max_days = numel(out.precipitation);  % number of simulation days
+    time_params.max_days = 60; %numel(out.precipitation);  % number of simulation days
     time_params.time_discretization =     3600;                                                     % 0.1 hrs in seconds
     time_params.intervals_per_day = 24 * 3600 / time_params.time_discretization;
     num_intervals = time_params.max_days * time_params.intervals_per_day;                           % in {time step}
