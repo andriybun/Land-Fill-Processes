@@ -54,7 +54,7 @@ function main_transfer_function()
     
     % Net amounts of precipitation from rainfall events entering each column / pathway:
     precipitation_in_time_vector = precipitation_intensity_time_vector * ...
-        (spatial_params.dx * spatial_params.xn * spatial_params.dy * spatial_params.yn);
+        (spatial_params.dx * spatial_params.dy);
     
     % Array specifying amounts of leachate leaving the landfill
 	leachate_out_array = zeros(time_params.num_intervals, spatial_params.xn, spatial_params.yn);
@@ -95,10 +95,7 @@ function main_transfer_function()
     hold on;
     plot(time_params.days_elapsed, leachate_out);
     plot(time_params.days_elapsed, leachate_out_old, 'g');
-    legend('mu, sigma variable', 'mu, sigma constant');
-    axis([time_params.days_elapsed(1) time_params.days_elapsed(end) 0 6]);
-    xlabel('Days');
-    ylabel('Total outflux, m');
+%     plot(time_params.days_elapsed, spatial_params.num_columns * precipitation_in_time_vector, 'r');
     hold off;
     
     return
