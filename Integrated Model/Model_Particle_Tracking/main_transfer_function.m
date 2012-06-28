@@ -3,7 +3,8 @@ function main_transfer_function()
 %   Integrated modelling framework for landfills
 %
 %   Features:
-%     - mass exchange between pathways;
+%     - log-normal transport function used to model travel times;
+%     - variable moisture content of columns affects conductivity;
 
 %% TODO: warning if time step is too big and there is a danger of overflow
 
