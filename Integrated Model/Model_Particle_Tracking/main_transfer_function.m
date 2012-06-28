@@ -117,13 +117,12 @@ function main_transfer_function()
             properties_array.effective_saturation(idx_calc));
         breakthrough = zeros(num_intervals - t + 1, size(mu, 1), size(mu, 2));
         % Leave breakthrough(1, :, :) = 0;
-        for t_idx = 2:num_intervals - t + 1
-            breakthrough(t_idx, (idx_calc)) = scale * time_discretization * exp(-(log(t_vector(t_idx)) - mu(idx_calc)).^2 ./ ...
-                (2 .* sigma(idx_calc) .* sigma(idx_calc))) ./ (sqrt(2 * pi) .* sigma(idx_calc) .* t_vector(t_idx));
-        end
-%         properties_array.mean_v = zeros(size(spatial_params.column_height_array));
-%         properties_array.mean_v(idx_calc) = scale * time_discretization ./ t_vector(t_idx) .* ...
-%             exp(mu(idx_calc) + sigma(idx_calc) .* sigma(idx_calc) ./ 2);
+        t_idx = 2:num_intervals - t + 1;
+        breakthrough(t_idx, (idx_calc)) = scale * time_discretization * log_normal_pdf(t_vector(t_idx), mu(idx_calc), sigma(idx_calc))';
+%         for t_idx = 2:num_intervals - t + 1
+%             breakthrough(t_idx, (idx_calc)) = scale * time_discretization * exp(-(log(t_vector(t_idx)) - mu(idx_calc)).^2 ./ ...
+%                 (2 .* sigma(idx_calc) .* sigma(idx_calc))) ./ (sqrt(2 * pi) .* sigma(idx_calc) .* t_vector(t_idx));
+%         end
         
         %% For comparison
         mu_old = zeros(size(spatial_params.column_height_array));
@@ -132,10 +131,11 @@ function main_transfer_function()
             hydraulic_params.k_sat ./ spatial_params.column_height_array(idx_calc), 0.7);
         breakthrough_old = zeros(num_intervals - t + 1, size(mu_old, 1), size(mu_old, 2));
         % Leave breakthrough_old(1, :, :) = 0;
-        for t_idx = 2:num_intervals - t + 1
-            breakthrough_old(t_idx, (idx_calc)) = scale * time_discretization * exp(-(log(t_vector(t_idx)) - mu_old(idx_calc)).^2 ./ ...
-                (2 .* sigma_old(idx_calc) .* sigma_old(idx_calc))) ./ (sqrt(2 * pi) .* sigma_old(idx_calc) .* t_vector(t_idx));
-        end
+        breakthrough_old(t_idx, (idx_calc)) = scale * time_discretization * log_normal_pdf(t_vector(t_idx), mu_old(idx_calc), sigma_old(idx_calc))';
+%         for t_idx = 2:num_intervals - t + 1
+%             breakthrough_old(t_idx, (idx_calc)) = scale * time_discretization * exp(-(log(t_vector(t_idx)) - mu_old(idx_calc)).^2 ./ ...
+%                 (2 .* sigma_old(idx_calc) .* sigma_old(idx_calc))) ./ (sqrt(2 * pi) .* sigma_old(idx_calc) .* t_vector(t_idx));
+%         end
         
     end
 
@@ -145,9 +145,6 @@ function main_transfer_function()
         new_se = zeros(size(current_se));
         idx = (max_water_volume ~= 0);
         new_se(idx) = current_se(idx) + flx(idx) ./ max_water_volume(idx);
-%         % So far workaround, but has to be fixed:
-%         new_se = min(0.999, new_se);
-%         new_se = max(0.12, new_se);
     end
 
     %% TODO:
@@ -164,5 +161,4 @@ function main_transfer_function()
             (1 ./ 2) .* erf((1 ./ 2) .* (-x + l + v .* dt) ./ (sqrt(dt) .* sqrt(d)));
     end
 
-    
 end
