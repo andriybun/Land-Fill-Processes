@@ -1,4 +1,4 @@
-function main_transfer_function()
+function main_transfer_function_2d()
 
 %   Integrated modelling framework for landfills
 %
@@ -43,7 +43,7 @@ function main_transfer_function()
     lognrnd_param_definer = log_normal_params();
 
     % Generate biogeochemical properties:
-    properties_array = generate_biogeochemical_properties(spatial_params);
+    properties_array = generate_biogeochemical_properties_2d(spatial_params);
     
     % Generate precipitation data (specific, independent of area):
     rand('seed', 1);
