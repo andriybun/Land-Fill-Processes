@@ -62,8 +62,6 @@ function main_transfer_function_2d()
     leachate_out_array_old = zeros(time_params.num_intervals, spatial_params.xn, spatial_params.yn);
     leachate_out = zeros(1, time_params.num_intervals);
     
-    se_column = zeros(1, time_params.num_intervals);
-    
     %% Main loop over time
     for t = 1:time_params.num_intervals
         in_flux = precipitation_in_time_vector(t); % * time_params.time_discretization;
@@ -83,8 +81,6 @@ function main_transfer_function_2d()
         properties_array.effective_saturation = ...
             alter_effective_saturation(properties_array.effective_saturation, flx, spatial_params, hydraulic_params);
 
-        se_column(t) = properties_array.effective_saturation(5, 5);
-        
         % Display progress
         if (mod(t, 1000) == 0)
             disp (t / time_params.num_intervals * 100);
@@ -93,6 +89,7 @@ function main_transfer_function_2d()
 
     leachate_out = squeeze(sum(sum(leachate_out_array, 3), 2));
     leachate_out_old = squeeze(sum(sum(leachate_out_array_old, 3), 2));
+    
     hold on;
     plot(time_params.days_elapsed, leachate_out);
     plot(time_params.days_elapsed, leachate_out_old, 'g');
