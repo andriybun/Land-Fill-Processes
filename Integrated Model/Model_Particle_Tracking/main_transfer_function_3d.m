@@ -2,6 +2,9 @@ function main_transfer_function_3d()
 
 %   Integrated modelling framework for landfills
 %
+%   Landfill is considered as a 3-dimensional network of cells of the same
+%   volume. Water flows through these cells.
+%
 %   Features:
 %     - log-normal transport function used to model travel times;
 %     - variable moisture content of columns affects conductivity;
@@ -119,6 +122,7 @@ function main_transfer_function_3d()
         idx_calc_layer(:, :, 1) = idx_calc;
         breakthrough(t_idx, idx_calc) = scale(t_idx, idx_calc) .* time_discretization .* ...
             log_normal_pdf(t_vector(t_idx), mu(idx_calc_layer), sigma(idx_calc_layer))';
+        breakthrough = avg_flow(breakthrough);
         leachate_intercell_array(:, :, :, 1) = leachate_intercell_array(:, :, :, 1) + breakthrough;
         % Calculations for other layers:
         for layer_idx = 2:spatial_params.zn
@@ -129,6 +133,7 @@ function main_transfer_function_3d()
             scale = permute(scale, [3, 1, 2]);
             breakthrough(t_idx, idx_calc) = scale(t_idx, idx_calc) .* time_discretization .* ...
                 log_normal_pdf(t_vector(t_idx), mu(idx_calc_layer), sigma(idx_calc_layer))';
+            breakthrough = avg_flow(breakthrough);
             leachate_intercell_array(:, :, :, layer_idx) = leachate_intercell_array(:, :, :, layer_idx) + breakthrough;
         end
     end

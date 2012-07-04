@@ -2,9 +2,13 @@ function main_transfer_function_2d()
 
 %   Integrated modelling framework for landfills
 %
+%   Landfill is considered as a 2-dimensional network of streamtubes of
+%   different lentgh.
+%
 %   Features:
 %     - log-normal transport function used to model travel times;
 %     - variable moisture content of columns affects conductivity;
+%
 
 %% TODO: warning if time step is too big and there is a danger of overflow
 
