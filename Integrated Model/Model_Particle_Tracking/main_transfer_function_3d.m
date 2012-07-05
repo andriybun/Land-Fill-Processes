@@ -10,9 +10,10 @@ function main_transfer_function_3d()
 %     - variable moisture content of columns affects conductivity;
 
 %% TODO: warning if time step is too big and there is a danger of overflow
-
+    
     clc;
-    addpath('../Common/')
+    addpath('../Common/');
+    tic;
 
     %% Input parameters:
     
@@ -56,35 +57,39 @@ function main_transfer_function_3d()
 %     file_name = '../Data/precip_braambergen.mat';
 %     [precipitation_intensity_time_vector, time_params, start_date] = read_precipitation_data_braambergen(file_name);
 
+    %% TESTING (let all the water flow out to check mass balance):
+    extra_days = 20;
+    time_params.max_days = time_params.max_days + extra_days;
+    time_params.num_intervals = time_params.max_days * time_params.intervals_per_day;                           % in {time step}
+    time_params.days_elapsed = (0 : 1: (time_params.num_intervals-1)) / time_params.intervals_per_day;
+    precipitation_intensity_time_vector = cat(2, precipitation_intensity_time_vector, zeros(1, extra_days * time_params.intervals_per_day));
+    %% END TESTING
+
     % Net amounts of precipitation from rainfall events entering each column / pathway:
     precipitation_in_time_vector = precipitation_intensity_time_vector * ...
         (spatial_params.dx * spatial_params.dy);
     
     % Array specifying amounts of leachate leaving the landfill
-	leachate_intercell_array = zeros(time_params.num_intervals, spatial_params.xn, spatial_params.yn, spatial_params.zn);
+	leachate_intercell_array = zeros([time_params.num_intervals, spatial_params.xn, spatial_params.yn, spatial_params.zn]);
     leachate_out = zeros(1, time_params.num_intervals);
+    
+    progr = floor(time_params.num_intervals / 10);
     
     %% Main loop over time
     for t = 1:time_params.num_intervals
         in_flux = precipitation_in_time_vector(t) .* (spatial_params.column_height_array > 0); % input flux per column
         [leachate_intercell_array(t:end, :, :, :), properties_array] = ...
             transport_lognormal(leachate_intercell_array(t:end, :, :, :), ...
-            t, ...
-            properties_array, ...
-            in_flux, ...
-            spatial_params, ...
-            hydraulic_params, ...
-            time_params, ...
-            lognrnd_param_definer);
+                                t, ...
+                                properties_array, ...
+                                in_flux, ...
+                                spatial_params, ...
+                                hydraulic_params, ...
+                                time_params, ...
+                                lognrnd_param_definer);
         
-        tmp_dims = size(leachate_intercell_array(t, :, :, :));
-        intercell_flux = cat(3, in_flux, reshape(leachate_intercell_array(t, :, :, 1:end-1), [tmp_dims(2:3) (tmp_dims(4)-1)])) - ...
-            reshape(leachate_intercell_array(t, :, :, :), tmp_dims(2:4));
-        properties_array.effective_saturation = ...
-            alter_effective_saturation(properties_array.effective_saturation, intercell_flux, spatial_params, hydraulic_params);
-
         % Display progress
-        if (mod(t, 1000) == 0)
+        if (mod(t, progr) == 0)
             disp (t / time_params.num_intervals * 100);
         end
     end
@@ -94,6 +99,10 @@ function main_transfer_function_3d()
     plot(time_params.days_elapsed, leachate_out, 'r');
     hold off;
     
+    disp(sum(precipitation_in_time_vector) * 138);
+    disp(sum(leachate_out));
+    
+    toc;
     return
     
     function [leachate_intercell_array, properties_array] = transport_lognormal(leachate_intercell_array, t, properties_array, scale, ...
@@ -113,29 +122,48 @@ function main_transfer_function_3d()
             hydraulic_params.k_sat ./ spatial_params.dz, ...
             properties_array.effective_saturation(idx_calc_3d));
         
-        % Initialize breakthrough but leave breakthrough(1, :, :) = 0;
+        % Set mu and sigma 0 and Infinity respectively for non-existing
+        % cells so that they are neglected and all the leachate is
+        % transferred further immediately
+        skip_cell_idx = (spatial_params.is_landfill_array == 0);
+        mu(skip_cell_idx) = 0;
+        sigma(skip_cell_idx) = Inf;
+        
+        % Initialize breakthrough
         breakthrough = zeros(num_intervals - t + 1, size(mu, 1), size(mu, 2));
         
-        t_idx = 2:num_intervals - t + 1;
+        t_idx = 1:num_intervals - t + 1;
+        
         % Calculations for the upper layer:
         idx_calc_layer = logical(zeros(size(mu)));
         idx_calc_layer(:, :, 1) = idx_calc;
         breakthrough(t_idx, idx_calc) = scale(t_idx, idx_calc) .* time_discretization .* ...
-            log_normal_pdf(t_vector(t_idx), mu(idx_calc_layer), sigma(idx_calc_layer))';
+            log_normal_pdf(t_vector(t_idx), mu(idx_calc_layer), sigma(idx_calc_layer), time_discretization)';
         breakthrough = avg_flow(breakthrough);
         leachate_intercell_array(:, :, :, 1) = leachate_intercell_array(:, :, :, 1) + breakthrough;
+        
         % Calculations for other layers:
         for layer_idx = 2:spatial_params.zn
             idx_calc_layer = logical(zeros(size(mu)));
             idx_calc_layer(:, :, layer_idx) = idx_calc;
             scale = leachate_intercell_array(1, :, :, layer_idx-1);
-            scale = repmat(scale, [1, 1, numel(t_vector)]);
-            scale = permute(scale, [3, 1, 2]);
+            scale = repmat(scale, [numel(t_vector), 1, 1]);
             breakthrough(t_idx, idx_calc) = scale(t_idx, idx_calc) .* time_discretization .* ...
-                log_normal_pdf(t_vector(t_idx), mu(idx_calc_layer), sigma(idx_calc_layer))';
+                log_normal_pdf(t_vector(t_idx), mu(idx_calc_layer), sigma(idx_calc_layer), time_discretization)';
             breakthrough = avg_flow(breakthrough);
             leachate_intercell_array(:, :, :, layer_idx) = leachate_intercell_array(:, :, :, layer_idx) + breakthrough;
         end
+        
+        % Adjust effective saturation to the flux
+        tmp_dims = size(leachate_intercell_array(1, :, :, :));
+        if numel(tmp_dims) == 4
+            intercell_flux = cat(3, in_flux, reshape(leachate_intercell_array(1, :, :, 1:end-1), [tmp_dims(2:3) (tmp_dims(4)-1)])) - ...
+                reshape(leachate_intercell_array(1, :, :, :), tmp_dims(2:4));
+        else
+            intercell_flux = in_flux - reshape(leachate_intercell_array(1, :, :), tmp_dims(2:3));
+        end
+        properties_array.effective_saturation = ...
+            alter_effective_saturation(properties_array.effective_saturation, intercell_flux, spatial_params, hydraulic_params);
     end
 
     function new_se = alter_effective_saturation(current_se, flx, spatial_params, hydraulic_params)

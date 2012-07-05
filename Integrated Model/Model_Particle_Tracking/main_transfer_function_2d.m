@@ -70,14 +70,14 @@ function main_transfer_function_2d()
     for t = 1:time_params.num_intervals
         in_flux = precipitation_in_time_vector(t); % * time_params.time_discretization;
         if (precipitation_in_time_vector(t) > 0)
-            [breakghrough_tmp, breakthrough_tmp_old, properties_array] = transport_lognormal(t, ...
+            [breakthrough_tmp, breakthrough_tmp_old, properties_array] = transport_lognormal(t, ...
                                                                        properties_array, ...
                                                                        in_flux, ...
                                                                        spatial_params, ...
                                                                        hydraulic_params, ...
                                                                        time_params, ...
                                                                        lognrnd_param_definer);
-            leachate_out_array(t:end, :, :) = leachate_out_array(t:end, :, :) + breakghrough_tmp;
+            leachate_out_array(t:end, :, :) = leachate_out_array(t:end, :, :) + breakthrough_tmp;
             leachate_out_array_old(t:end, :, :) = leachate_out_array_old(t:end, :, :) + breakthrough_tmp_old;
         end
         
@@ -94,8 +94,8 @@ function main_transfer_function_2d()
     leachate_out = squeeze(sum(sum(leachate_out_array, 3), 2));
     leachate_out_old = squeeze(sum(sum(leachate_out_array_old, 3), 2));
     
-    hold on;
     plot(time_params.days_elapsed, leachate_out);
+    hold on;
     plot(time_params.days_elapsed, leachate_out_old, 'g');
 %     plot(time_params.days_elapsed, spatial_params.num_columns * precipitation_in_time_vector, 'r');
     hold off;
@@ -116,27 +116,24 @@ function main_transfer_function_2d()
         [mu(idx_calc), sigma(idx_calc)] = lognrnd_param_definer.get_params(...
             hydraulic_params.k_sat ./ spatial_params.column_height_array(idx_calc), ...
             properties_array.effective_saturation(idx_calc));
+        
+        t_idx = 1:num_intervals - t + 1;
+
         breakthrough = zeros(num_intervals - t + 1, size(mu, 1), size(mu, 2));
-        % Leave breakthrough(1, :, :) = 0;
-        t_idx = 2:num_intervals - t + 1;
-        breakthrough(t_idx, (idx_calc)) = scale * time_discretization * log_normal_pdf(t_vector(t_idx), mu(idx_calc), sigma(idx_calc))';
-%         for t_idx = 2:num_intervals - t + 1
-%             breakthrough(t_idx, (idx_calc)) = scale * time_discretization * exp(-(log(t_vector(t_idx)) - mu(idx_calc)).^2 ./ ...
-%                 (2 .* sigma(idx_calc) .* sigma(idx_calc))) ./ (sqrt(2 * pi) .* sigma(idx_calc) .* t_vector(t_idx));
-%         end
+        breakthrough(t_idx, (idx_calc)) = scale * time_discretization * ...
+            log_normal_pdf(t_vector(t_idx), mu(idx_calc), sigma(idx_calc), time_discretization)';
+        breakthrough = avg_flow(breakthrough);
         
         %% For comparison
         mu_old = zeros(size(spatial_params.column_height_array));
         sigma_old = zeros(size(spatial_params.column_height_array));
         [mu_old(idx_calc), sigma_old(idx_calc)] = lognrnd_param_definer.get_params(...
             hydraulic_params.k_sat ./ spatial_params.column_height_array(idx_calc), 0.7);
+
         breakthrough_old = zeros(num_intervals - t + 1, size(mu_old, 1), size(mu_old, 2));
-        % Leave breakthrough_old(1, :, :) = 0;
-        breakthrough_old(t_idx, (idx_calc)) = scale * time_discretization * log_normal_pdf(t_vector(t_idx), mu_old(idx_calc), sigma_old(idx_calc))';
-%         for t_idx = 2:num_intervals - t + 1
-%             breakthrough_old(t_idx, (idx_calc)) = scale * time_discretization * exp(-(log(t_vector(t_idx)) - mu_old(idx_calc)).^2 ./ ...
-%                 (2 .* sigma_old(idx_calc) .* sigma_old(idx_calc))) ./ (sqrt(2 * pi) .* sigma_old(idx_calc) .* t_vector(t_idx));
-%         end
+        breakthrough_old(t_idx, (idx_calc)) = scale * time_discretization * ...
+            log_normal_pdf(t_vector(t_idx), mu_old(idx_calc), sigma_old(idx_calc), time_discretization)';
+        breakthrough_old = avg_flow(breakthrough_old);
         
     end
 

@@ -1,7 +1,7 @@
 function spatial_params = define_geometry()
     % Landfill size:
-    x_len = 1;%10;
-    y_len = 1;%15;
+    x_len = 10;
+    y_len = 15;
     z_depth = 10;
 
     % Structure defining landfill geometric properties:
@@ -19,10 +19,10 @@ function spatial_params = define_geometry()
     % false)
     spatial_params.is_landfill_array = ones(spatial_params.xn, spatial_params.yn, spatial_params.zn);
     
-%     %% STUB:
-%     spatial_params.is_landfill_array(1:4, 1:3, :) = 0;
+    %% STUB:
+    spatial_params.is_landfill_array(1:4, 1:3, :) = 0;
 %     spatial_params.is_landfill_array(7:end, 8:end, 4:end) = 0;
-%     %% END STUB
+    %% END STUB
     
     % 2D array defining column heights of size dx * dy in the landfill body
     % conducting liquid
