@@ -44,7 +44,7 @@ function main_transfer_function_2d()
     spatial_params = define_geometry();
 
     % Determine probability distribution parameters corresponding to defined inputs:
-    lognrnd_param_definer = log_normal_params();
+    lognrnd_param_definer = log_normal_params('opt_params_wt_matrix_domain.mat');
 
     % Generate biogeochemical properties:
     properties_array = generate_biogeochemical_properties_2d(spatial_params);
@@ -66,6 +66,8 @@ function main_transfer_function_2d()
     leachate_out_array_old = zeros(time_params.num_intervals, spatial_params.xn, spatial_params.yn);
     leachate_out = zeros(1, time_params.num_intervals);
     
+    progr = floor(time_params.num_intervals / 10);
+    
     %% Main loop over time
     for t = 1:time_params.num_intervals
         in_flux = precipitation_in_time_vector(t); % * time_params.time_discretization;
@@ -86,7 +88,7 @@ function main_transfer_function_2d()
             alter_effective_saturation(properties_array.effective_saturation, flx, spatial_params, hydraulic_params);
 
         % Display progress
-        if (mod(t, 1000) == 0)
+        if (mod(t, progr) == 0)
             disp (t / time_params.num_intervals * 100);
         end
     end
@@ -107,7 +109,7 @@ function main_transfer_function_2d()
         num_intervals = time_params.num_intervals;
         time_discretization = time_params.time_discretization;
         
-        t_vector = 0 : time_discretization : time_discretization * (num_intervals - t);
+        t_vector = 0 : time_discretization : time_discretization * (num_intervals - t + 1);
         
         mu = zeros(size(spatial_params.column_height_array));
         sigma = zeros(size(spatial_params.column_height_array));
@@ -117,12 +119,9 @@ function main_transfer_function_2d()
             hydraulic_params.k_sat ./ spatial_params.column_height_array(idx_calc), ...
             properties_array.effective_saturation(idx_calc));
         
-        t_idx = 1:num_intervals - t + 1;
-
-        breakthrough = zeros(num_intervals - t + 1, size(mu, 1), size(mu, 2));
-        breakthrough(t_idx, (idx_calc)) = scale * time_discretization * ...
-            log_normal_pdf(t_vector(t_idx), mu(idx_calc), sigma(idx_calc), time_discretization)';
-        breakthrough = avg_flow(breakthrough);
+        breakthrough_cum = zeros(num_intervals - t + 2, size(mu, 1), size(mu, 2));
+        breakthrough_cum(:, (idx_calc)) = scale * log_normal_cdf(t_vector, mu(idx_calc), sigma(idx_calc))';
+        breakthrough = breakthrough_cum(2:end, :, :) - breakthrough_cum(1:end-1, :, :);
         
         %% For comparison
         mu_old = zeros(size(spatial_params.column_height_array));
@@ -130,11 +129,9 @@ function main_transfer_function_2d()
         [mu_old(idx_calc), sigma_old(idx_calc)] = lognrnd_param_definer.get_params(...
             hydraulic_params.k_sat ./ spatial_params.column_height_array(idx_calc), 0.7);
 
-        breakthrough_old = zeros(num_intervals - t + 1, size(mu_old, 1), size(mu_old, 2));
-        breakthrough_old(t_idx, (idx_calc)) = scale * time_discretization * ...
-            log_normal_pdf(t_vector(t_idx), mu_old(idx_calc), sigma_old(idx_calc), time_discretization)';
-        breakthrough_old = avg_flow(breakthrough_old);
-        
+        breakthrough_cum_old = zeros(num_intervals - t + 2, size(mu, 1), size(mu, 2));
+        breakthrough_cum_old(:, (idx_calc)) = scale * log_normal_cdf(t_vector, mu_old(idx_calc), sigma_old(idx_calc))';
+        breakthrough_old = breakthrough_cum_old(2:end, :, :) - breakthrough_cum_old(1:end-1, :, :);
     end
 
     function new_se = alter_effective_saturation(current_se, flx, spatial_params, hydraulic_params)

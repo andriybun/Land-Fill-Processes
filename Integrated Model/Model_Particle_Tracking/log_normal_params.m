@@ -6,8 +6,12 @@ classdef log_normal_params
     end
     
     methods
-        function self = log_normal_params()
-            self.opt_params = load('opt_params_wt.mat');
+        function self = log_normal_params(file_name)
+            if nargin == 0
+                self.opt_params = load('opt_params_wt.mat');
+            else
+                self.opt_params = load(file_name);
+            end
             if self.opt_params.saturation_effective_avg(1) > self.opt_params.saturation_effective_avg(end)
                 self.se_hi = self.opt_params.saturation_effective_avg(1);
                 self.se_low = self.opt_params.saturation_effective_avg(end);

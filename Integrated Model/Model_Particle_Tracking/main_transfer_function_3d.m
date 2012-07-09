@@ -44,7 +44,7 @@ function main_transfer_function_3d()
     spatial_params = define_geometry();
 
     % Determine probability distribution parameters corresponding to defined inputs:
-    lognrnd_param_definer = log_normal_params();
+    lognrnd_param_definer = log_normal_params('opt_params_wt_matrix_domain.mat');
 
     % Generate biogeochemical properties:
     properties_array = generate_biogeochemical_properties_3d(spatial_params);
@@ -109,7 +109,7 @@ function main_transfer_function_3d()
             spatial_params, hydraulic_params, time_params, lognrnd_param_definer)
         num_intervals = time_params.num_intervals;
         time_discretization = time_params.time_discretization;
-        t_vector = 0 : time_discretization : time_discretization * (num_intervals - t);
+        t_vector = 0 : time_discretization : time_discretization * (num_intervals - t + 1);
         scale = repmat(scale, [1, 1, numel(t_vector)]);
         scale = permute(scale, [3, 1, 2]);
         
@@ -130,16 +130,14 @@ function main_transfer_function_3d()
         sigma(skip_cell_idx) = Inf;
         
         % Initialize breakthrough
-        breakthrough = zeros(num_intervals - t + 1, size(mu, 1), size(mu, 2));
-        
-        t_idx = 1:num_intervals - t + 1;
+        breakthrough_cum = zeros(numel(t_vector), size(mu, 1), size(mu, 2));
         
         % Calculations for the upper layer:
         idx_calc_layer = logical(zeros(size(mu)));
         idx_calc_layer(:, :, 1) = idx_calc;
-        breakthrough(t_idx, idx_calc) = scale(t_idx, idx_calc) .* time_discretization .* ...
-            log_normal_pdf(t_vector(t_idx), mu(idx_calc_layer), sigma(idx_calc_layer), time_discretization)';
-        breakthrough = avg_flow(breakthrough);
+        breakthrough_cum(:, idx_calc) = scale(:, idx_calc) .* ...
+            log_normal_cdf(t_vector, mu(idx_calc_layer), sigma(idx_calc_layer))';
+        breakthrough = breakthrough_cum(2:end, :, :, :) - breakthrough_cum(1:end-1, :, :, :);
         leachate_intercell_array(:, :, :, 1) = leachate_intercell_array(:, :, :, 1) + breakthrough;
         
         % Calculations for other layers:
@@ -148,9 +146,8 @@ function main_transfer_function_3d()
             idx_calc_layer(:, :, layer_idx) = idx_calc;
             scale = leachate_intercell_array(1, :, :, layer_idx-1);
             scale = repmat(scale, [numel(t_vector), 1, 1]);
-            breakthrough(t_idx, idx_calc) = scale(t_idx, idx_calc) .* time_discretization .* ...
-                log_normal_pdf(t_vector(t_idx), mu(idx_calc_layer), sigma(idx_calc_layer), time_discretization)';
-            breakthrough = avg_flow(breakthrough);
+            breakthrough_cum(:, idx_calc) = scale(:, idx_calc) .* log_normal_cdf(t_vector, mu(idx_calc_layer), sigma(idx_calc_layer))';
+            breakthrough = breakthrough_cum(2:end, :, :, :) - breakthrough_cum(1:end-1, :, :, :);
             leachate_intercell_array(:, :, :, layer_idx) = leachate_intercell_array(:, :, :, layer_idx) + breakthrough;
         end
         
