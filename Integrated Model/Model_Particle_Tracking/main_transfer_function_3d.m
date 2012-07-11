@@ -30,9 +30,9 @@ function main_transfer_function_3d()
     time_params.days_elapsed = (0 : 1: (num_intervals-1)) / time_params.intervals_per_day;
     
     % Fluid velocity parameters
-    hydraulic_params.k_sat = 1e-4;                      % m / s
-    hydraulic_params.theta_r = 0.102;                   % residual water content
-    hydraulic_params.theta_s = 0.368;                   % saturated water content
+    hydraulic_params.k_sat = 0.01;                       % relative to k_sat for which opt_params*.mat is calculated
+    hydraulic_params.theta_r = 0.15;                    % residual water content
+    hydraulic_params.theta_s = 0.5;                     % saturated water content
     hydraulic_params.d = 1;                             % diffusion_coefficient
 %     expected_fluid_velocity = ...
 %         expected_fluid_velocity_mps * time_discretization;  % m / {time step}
@@ -77,7 +77,8 @@ function main_transfer_function_3d()
     
     %% Main loop over time
     for t = 1:time_params.num_intervals
-        in_flux = precipitation_in_time_vector(t) .* (spatial_params.column_height_array > 0); % input flux per column
+        in_flux = precipitation_in_time_vector(t) * spatial_params.dx * spatial_params.dy ...
+            .* (spatial_params.column_height_array > 0); % input flux per column
         [leachate_intercell_array(t:end, :, :, :), properties_array] = ...
             transport_lognormal(leachate_intercell_array(t:end, :, :, :), ...
                                 t, ...

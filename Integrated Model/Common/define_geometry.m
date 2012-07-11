@@ -21,7 +21,7 @@ function spatial_params = define_geometry()
     
     %% STUB:
     spatial_params.is_landfill_array(1:4, 1:3, :) = 0;
-%     spatial_params.is_landfill_array(7:end, 8:end, 4:end) = 0;
+    spatial_params.is_landfill_array(7:end, 8:end, 4:end) = 0;
     %% END STUB
     
     % 2D array defining column heights of size dx * dy in the landfill body

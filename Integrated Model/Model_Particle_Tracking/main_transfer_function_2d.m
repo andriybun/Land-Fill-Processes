@@ -30,9 +30,9 @@ function main_transfer_function_2d()
     time_params.days_elapsed = (0 : 1: (num_intervals-1)) / time_params.intervals_per_day;
     
     % Fluid velocity parameters
-    hydraulic_params.k_sat = 1e-4;                      % m / s
-    hydraulic_params.theta_r = 0.102;                   % residual water content
-    hydraulic_params.theta_s = 0.368;                   % saturated water content
+    hydraulic_params.k_sat = 0.05;                       % m / s
+    hydraulic_params.theta_r = 0.15;                    % residual water content
+    hydraulic_params.theta_s = 0.5;                     % saturated water content
     hydraulic_params.d = 1;                             % diffusion_coefficient
 %     expected_fluid_velocity = ...
 %         expected_fluid_velocity_mps * time_discretization;  % m / {time step}
@@ -70,7 +70,7 @@ function main_transfer_function_2d()
     
     %% Main loop over time
     for t = 1:time_params.num_intervals
-        in_flux = precipitation_in_time_vector(t); % * time_params.time_discretization;
+        in_flux = precipitation_in_time_vector(t) * spatial_params.dx * spatial_params.dy;
         if (precipitation_in_time_vector(t) > 0)
             [breakthrough_tmp, breakthrough_tmp_old, properties_array] = transport_lognormal(t, ...
                                                                        properties_array, ...
@@ -127,7 +127,7 @@ function main_transfer_function_2d()
         mu_old = zeros(size(spatial_params.column_height_array));
         sigma_old = zeros(size(spatial_params.column_height_array));
         [mu_old(idx_calc), sigma_old(idx_calc)] = lognrnd_param_definer.get_params(...
-            hydraulic_params.k_sat ./ spatial_params.column_height_array(idx_calc), 0.7);
+            hydraulic_params.k_sat ./ spatial_params.column_height_array(idx_calc), 0.5);
 
         breakthrough_cum_old = zeros(num_intervals - t + 2, size(mu, 1), size(mu, 2));
         breakthrough_cum_old(:, (idx_calc)) = scale * log_normal_cdf(t_vector, mu_old(idx_calc), sigma_old(idx_calc))';
@@ -139,7 +139,7 @@ function main_transfer_function_2d()
         max_water_volume = (hydraulic_params.theta_s - hydraulic_params.theta_r) * column_volume_array;
         new_se = zeros(size(current_se));
         idx = (max_water_volume ~= 0);
-        new_se(idx) = current_se(idx) + flx(idx) ./ max_water_volume(idx);
+        new_se(idx) = current_se(idx) + flx(idx) ./ max_water_volume(idx) .* spatial_params.column_height_array(idx);
     end
 
     %% TODO:
