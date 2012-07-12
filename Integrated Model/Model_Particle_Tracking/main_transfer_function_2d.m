@@ -34,9 +34,6 @@ function main_transfer_function_2d()
     hydraulic_params.theta_r = 0.15;                    % residual water content
     hydraulic_params.theta_s = 0.5;                     % saturated water content
     hydraulic_params.d = 1;                             % diffusion_coefficient
-%     expected_fluid_velocity = ...
-%         expected_fluid_velocity_mps * time_discretization;  % m / {time step}
-%     variance = 3 * expected_fluid_velocity;                 % 95% confidence interval width
 
     %% Preparing data for simulation:
     
@@ -44,8 +41,12 @@ function main_transfer_function_2d()
     spatial_params = define_geometry();
 
     % Determine probability distribution parameters corresponding to defined inputs:
-    lognrnd_param_definer = log_normal_params('opt_params_wt_matrix_domain.mat');
+    lognrnd_param_definer = log_normal_params('../Common/opt_params_wt_matrix_domain.mat');
 
+    % Fluid hydraulic parameters
+    hydraulic_params = lognrnd_param_definer.hydraulic_params;
+    hydraulic_params.d = 1;                             % diffusion_coefficient
+    
     % Generate biogeochemical properties:
     properties_array = generate_biogeochemical_properties_2d(spatial_params);
     

@@ -29,23 +29,18 @@ function main_transfer_function_3d()
     time_params.num_intervals = num_intervals;
     time_params.days_elapsed = (0 : 1: (num_intervals-1)) / time_params.intervals_per_day;
     
-    % Fluid velocity parameters
-    hydraulic_params.k_sat = 0.01;                       % relative to k_sat for which opt_params*.mat is calculated
-    hydraulic_params.theta_r = 0.15;                    % residual water content
-    hydraulic_params.theta_s = 0.5;                     % saturated water content
-    hydraulic_params.d = 1;                             % diffusion_coefficient
-%     expected_fluid_velocity = ...
-%         expected_fluid_velocity_mps * time_discretization;  % m / {time step}
-%     variance = 3 * expected_fluid_velocity;                 % 95% confidence interval width
-
     %% Preparing data for simulation:
     
     % Get spatial_params characteristics of a landfill:
     spatial_params = define_geometry();
 
     % Determine probability distribution parameters corresponding to defined inputs:
-    lognrnd_param_definer = log_normal_params('opt_params_wt_matrix_domain.mat');
+    lognrnd_param_definer = log_normal_params('../Common/opt_params_wt_matrix_domain.mat');
 
+    % Fluid hydraulic parameters
+    hydraulic_params = lognrnd_param_definer.hydraulic_params;
+    hydraulic_params.d = 1;                             % diffusion_coefficient
+    
     % Generate biogeochemical properties:
     properties_array = generate_biogeochemical_properties_3d(spatial_params);
     

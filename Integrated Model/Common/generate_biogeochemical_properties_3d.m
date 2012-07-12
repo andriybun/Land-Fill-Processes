@@ -3,7 +3,7 @@ function properties_array = generate_biogeochemical_properties_3d(spatial_params
     sz = size(is_landfill_array);
     properties_array_soa = struct();
     
-    properties_array_soa.effective_saturation = 0.5 * ones(sz);
+    properties_array_soa.effective_saturation = 0.3 * ones(sz);
     
     %% STUB:
     is_data_idx = (is_landfill_array > 0);

@@ -3,6 +3,7 @@ classdef log_normal_params
         opt_params;         % structure to which a file with best approximations of parameters will be loaded
         se_low;             % minimum value for precomputed effective saturation
         se_hi;              % maximum value for precomputed effective saturation 
+        hydraulic_params;   % van Genuchten parameters used for simulations
     end
     
     methods
@@ -19,7 +20,8 @@ classdef log_normal_params
                 self.se_low = self.opt_params.saturation_effective_avg(1);
                 self.se_hi = self.opt_params.saturation_effective_avg(end);
             end
-            
+            self.hydraulic_params = self.opt_params.van_genuchten_params;
+            self.opt_params = rmfield(self.opt_params, 'van_genuchten_params');
         end
         
         function [mu, sigma] = get_params(self, k_sat, se)
