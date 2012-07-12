@@ -15,12 +15,6 @@ function try_1dim_2domain_flow()
     time_params.num_intervals = num_intervals;
     time_params.days_elapsed = (0 : 1: (num_intervals-1)) / time_params.intervals_per_day;
     
-    % Fluid velocity parameters (1st - matrix domain; 2nd - channel domain)
-    hydraulic_params.k_sat    = [1, 1e-1];                % 
-    hydraulic_params.theta_r  = [0.15, 0];                % residual water content
-    hydraulic_params.theta_s  = [0.5, 0.01];              % saturated water content
-    hydraulic_params.d        = [1, 1];                   % diffusion_coefficient
-    
     % Geometry params
     spatial_params = struct();
     spatial_params.dx = [1, 1];
@@ -41,6 +35,16 @@ function try_1dim_2domain_flow()
     % Determine probability distribution parameters corresponding to defined inputs:
     lognrnd_param_definer(1) = log_normal_params('opt_params_wt_matrix_domain.mat');
     lognrnd_param_definer(2) = log_normal_params('opt_params_wt_channel_domain.mat');
+    
+    % Fluid velocity parameters (1st - matrix domain; 2nd - channel domain)
+    hydraulic_params.k_sat_ref = [lognrnd_param_definer(1).hydraulic_params.k_sat, ...
+                                  lognrnd_param_definer(2).hydraulic_params.k_sat];             % 
+	hydraulic_params.k_sat     = [1, 1];
+    hydraulic_params.theta_r   = [lognrnd_param_definer(1).hydraulic_params.theta_r, ...
+                                  lognrnd_param_definer(2).hydraulic_params.theta_r];           % residual water content
+    hydraulic_params.theta_s   = [lognrnd_param_definer(1).hydraulic_params.theta_s, ...
+                                  lognrnd_param_definer(2).hydraulic_params.theta_s];           % saturated water content
+    hydraulic_params.d         = [1, 1];                                                        % diffusion_coefficient
     
     % Result
     leachate_flux = zeros(horzcat(num_intervals, size(spatial_params.dz)));

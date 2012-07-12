@@ -14,12 +14,6 @@ function try_1dim_flow()
     time_params.num_intervals = num_intervals;
     time_params.days_elapsed = (0 : 1: (num_intervals-1)) / time_params.intervals_per_day;
     
-    % Fluid velocity parameters
-    hydraulic_params.k_sat = 1e-4;                      % m / s
-    hydraulic_params.theta_r = 0.102;                   % residual water content
-    hydraulic_params.theta_s = 0.368;                   % saturated water content
-    hydraulic_params.d = 1;                             % diffusion_coefficient
-    
     % Flow params
     spatial_params = struct();
     spatial_params.dx = 1;
@@ -36,7 +30,13 @@ function try_1dim_flow()
     precipitation_intensity_time_vector(1) = 1e-4;
     
     % Determine probability distribution parameters corresponding to defined inputs:
-    lognrnd_param_definer = log_normal_params();
+    lognrnd_param_definer = log_normal_params('../Common/opt_params_wt_matrix_domain.mat');
+    
+    % Fluid hydraulic parameters
+    hydraulic_params = lognrnd_param_definer.hydraulic_params;
+    hydraulic_params.k_sat_ref = hydraulic_params.k_sat;    % reference conductivity
+    hydraulic_params.k_sat = 1;                             % relative conductivity compared to reference conductivity
+    hydraulic_params.d = 1;                                 % diffusion_coefficient
     
     % Result
     leachate_flux = zeros(num_intervals, numel(spatial_params.dz));
