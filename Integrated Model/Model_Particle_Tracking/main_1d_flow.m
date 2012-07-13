@@ -7,12 +7,12 @@ function try_1dim_flow()
     start_date.year = 2012;
     start_date.month = 1;
     start_date.day = 1;
-    time_params.max_days = 30;                                                           % number of simulation days
-    time_params.time_discretization = 3600;                                                     % in seconds
-    time_params.intervals_per_day = 24 * 3600 / time_params.time_discretization;
-    num_intervals = time_params.max_days * time_params.intervals_per_day;                       % in {time step}
-    time_params.num_intervals = num_intervals;
-    time_params.days_elapsed = (0 : 1: (num_intervals-1)) / time_params.intervals_per_day;
+    time_params.max_days = 1500;                                                         % number of simulation days
+    time_params.intervals_per_day = 1;
+    time_params.time_discretization = 1 / time_params.intervals_per_day;                 % in days
+    time_params.num_intervals = time_params.max_days * time_params.intervals_per_day;    % in {time step}
+    time_params.days_elapsed = (0 : 1: (time_params.num_intervals-1)) / time_params.intervals_per_day;
+    num_intervals = time_params.num_intervals;
     
     % Flow params
     spatial_params = struct();
@@ -22,7 +22,7 @@ function try_1dim_flow()
     spatial_params.dz(5:end) = 0;
     
     properties_array = struct();
-    properties_array.effective_saturation = 0.3 * ones(size(spatial_params.dz));    % initial SE
+    properties_array.effective_saturation = 0.5 * ones(size(spatial_params.dz));    % initial SE
     
 %     file_name = '../Data/precipitation_daily_KNMI_20110908.txt';
 %     [precipitation_intensity_time_vector, time_params, start_date] = read_precipitation_data_csv(file_name);
@@ -40,17 +40,19 @@ function try_1dim_flow()
     
     % Result
     leachate_flux = zeros(num_intervals, numel(spatial_params.dz));
-%     se = zeros(numel(spatial_params.dz), num_intervals);
+
+    progr = floor(time_params.num_intervals / 10);
     
     for t = 1:num_intervals
         [leachate_flux, properties_array] = transport_lognormal(leachate_flux, t, properties_array, ...
             precipitation_intensity_time_vector(t), spatial_params, hydraulic_params, time_params, lognrnd_param_definer);
-%         se(:, t) = effective_saturation;
+        % Display progress
+        if (mod(t, progr) == 0)
+            disp (t / time_params.num_intervals * 100);
+        end
     end
 
     plot(time_params.days_elapsed, leachate_flux);
-%     figure(2);
-%     mesh(se);
 
     return 
     

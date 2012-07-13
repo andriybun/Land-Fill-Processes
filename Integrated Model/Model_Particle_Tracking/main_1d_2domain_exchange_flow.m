@@ -1,4 +1,4 @@
-function try_1dim_2domain_exchange_flow()
+function main_1d_2domain_exchange_flow()
     clc;
     tic;
     addpath('../Common/');
@@ -8,12 +8,12 @@ function try_1dim_2domain_exchange_flow()
     start_date.year = 2012;
     start_date.month = 1;
     start_date.day = 1;
-    time_params.max_days = 30;                                                                  % number of simulation days
-    time_params.time_discretization = 3600;                                                     % in seconds
-    time_params.intervals_per_day = 24 * 3600 / time_params.time_discretization;
-    num_intervals = time_params.max_days * time_params.intervals_per_day;                       % in {time step}
-    time_params.num_intervals = num_intervals;
-    time_params.days_elapsed = (0 : 1: (num_intervals-1)) / time_params.intervals_per_day;
+    time_params.max_days = 100;                                                           % number of simulation days
+    time_params.intervals_per_day = 24;
+    time_params.time_discretization = 1 / time_params.intervals_per_day;                 % in days
+    time_params.num_intervals = time_params.max_days * time_params.intervals_per_day;    % in {time step}
+    time_params.days_elapsed = (0 : 1: (time_params.num_intervals-1)) / time_params.intervals_per_day;
+    num_intervals = time_params.num_intervals;
     
     % Geometry params
     spatial_params = struct();
@@ -25,19 +25,20 @@ function try_1dim_2domain_exchange_flow()
     % initial SE
     properties_array = struct();
     properties_array.effective_saturation = ones(size(spatial_params.dz));
-    properties_array.effective_saturation(:, 1) = 0.2;
-    properties_array.effective_saturation(:, 2) = 0.2;
+    properties_array.effective_saturation(:, 1) = 0.3;
+    properties_array.effective_saturation(:, 2) = 0.15;
 
     % Characteristics of eschange between domains (rate of flow from matrix
     % domain to channel domain)
     z = cumsum(spatial_params.dz(:, 1)) - spatial_params.dz(1, 1);
-    exchange_rate = 0.1 / max(z) * z;
+    exchange_rate = 0.3 * (1 - 1 / max(z)^(1/2) * z.^(1/2));
+%     exchange_rate = 0.3 * (1 - 1 / max(z) * z);
     
     file_name = '../Data/precipitation_daily_KNMI_20110908.txt';
     [precipitation_intensity_time_vector, time_params, start_date] = read_precipitation_data_csv(file_name);
     num_intervals = time_params.num_intervals;
     %% TESTING (let all the water flow out to check mass balance):
-    extra_days = 20;
+    extra_days = 100;
     time_params.max_days = time_params.max_days + extra_days;
     time_params.num_intervals = time_params.max_days * time_params.intervals_per_day;                           % in {time step}
     num_intervals = time_params.num_intervals;
@@ -49,26 +50,33 @@ function try_1dim_2domain_exchange_flow()
 %     precipitation_intensity_time_vector(1) = 1e-4;
     
     % Determine probability distribution parameters corresponding to defined inputs:
-    lognrnd_param_definer(1) = log_normal_params('opt_params_wt_matrix_domain.mat');
-    lognrnd_param_definer(2) = log_normal_params('opt_params_wt_channel_domain.mat');
+    lognrnd_param_definer(1) = log_normal_params('../Common/opt_params_wt_matrix_domain.mat');
+    lognrnd_param_definer(2) = log_normal_params('../Common/opt_params_wt_channel_domain.mat');
     
     % Fluid velocity parameters (1st - matrix domain; 2nd - channel domain)
     hydraulic_params.k_sat_ref = [lognrnd_param_definer(1).hydraulic_params.k_sat, ...
                                   lognrnd_param_definer(2).hydraulic_params.k_sat];             % 
-	hydraulic_params.k_sat     = [1, 1];
-    hydraulic_params.theta_r  = [lognrnd_param_definer(1).hydraulic_params.theta_r, ...
-                                 lognrnd_param_definer(2).hydraulic_params.theta_r];            % residual water content
-    hydraulic_params.theta_s  = [lognrnd_param_definer(1).hydraulic_params.theta_s, ...
-                                 lognrnd_param_definer(2).hydraulic_params.theta_s];            % saturated water content
-    hydraulic_params.d        = [1, 1];                                                         % diffusion_coefficient
+	hydraulic_params.k_sat     = [5e+1, 1e-1];
+    hydraulic_params.theta_r   = [lognrnd_param_definer(1).hydraulic_params.theta_r, ...
+                                  lognrnd_param_definer(2).hydraulic_params.theta_r];           % residual water content
+    hydraulic_params.theta_s   = [lognrnd_param_definer(1).hydraulic_params.theta_s, ...
+                                  lognrnd_param_definer(2).hydraulic_params.theta_s];           % saturated water content
+    hydraulic_params.d         = [1, 1];                                                        % diffusion_coefficient
     
     % Result
     leachate_flux = zeros(horzcat(num_intervals, size(spatial_params.dz)));
+    
+    progr = floor(time_params.num_intervals / 10);
     
     for t = 1:num_intervals
         [leachate_flux, properties_array] = transport_lognormal(leachate_flux, t, ...
             properties_array, precipitation_intensity_time_vector(t), spatial_params, ...
             hydraulic_params, time_params, lognrnd_param_definer);
+        
+        % Display progress
+        if (mod(t, progr) == 0)
+            disp (t / time_params.num_intervals * 100);
+        end
     end
 
 %     plot(time_params.days_elapsed, sum(leachate_flux, 3));
@@ -109,6 +117,8 @@ function try_1dim_2domain_exchange_flow()
         
         % Water input at time t
         scale = scale .* spatial_params.dx .* spatial_params.dy;
+        exchange = exchange_rate(1) * scale(1);
+        scale = scale + [-exchange, exchange];
         scale = reproduce(scale, numel(t_vector));
         
         % Calculate breakthrough (upper layer)

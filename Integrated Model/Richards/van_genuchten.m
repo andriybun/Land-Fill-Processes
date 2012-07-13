@@ -1,5 +1,4 @@
-% function [c, k, theta] = van_genuchten(hw, vg_par)
-function [k, theta] = van_genuchten(hw, vg_par)
+function [k, theta, se] = van_genuchten(hw, vg_par)
  
     alpha   = vg_par.alpha;
     theta_s = vg_par.theta_s;

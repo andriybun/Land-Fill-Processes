@@ -15,26 +15,6 @@ function main_transfer_function_2d()
     clc;
     addpath('../Common/')
 
-    %% Input parameters:
-    
-    % Time
-    start_date = struct();
-    start_date.year = 2012;
-    start_date.month = 1;
-    start_date.day = 1;
-    time_params.max_days = 30; % 365;                                                           % number of simulation days
-    time_params.time_discretization = 3600;                                                     % in seconds
-    time_params.intervals_per_day = 24 * 3600 / time_params.time_discretization;
-    num_intervals = time_params.max_days * time_params.intervals_per_day;                       % in {time step}
-    time_params.num_intervals = num_intervals;
-    time_params.days_elapsed = (0 : 1: (num_intervals-1)) / time_params.intervals_per_day;
-    
-    % Fluid velocity parameters
-    hydraulic_params.k_sat = 0.05;                       % m / s
-    hydraulic_params.theta_r = 0.15;                    % residual water content
-    hydraulic_params.theta_s = 0.5;                     % saturated water content
-    hydraulic_params.d = 1;                             % diffusion_coefficient
-
     %% Preparing data for simulation:
     
     % Get spatial_params characteristics of a landfill:
@@ -45,6 +25,8 @@ function main_transfer_function_2d()
 
     % Fluid hydraulic parameters
     hydraulic_params = lognrnd_param_definer.hydraulic_params;
+    hydraulic_params.k_sat_ref = hydraulic_params.k_sat;    % reference conductivity
+    hydraulic_params.k_sat = 1;                             % relative conductivity compared to reference conductivity
     hydraulic_params.d = 1;                             % diffusion_coefficient
     
     % Generate biogeochemical properties:

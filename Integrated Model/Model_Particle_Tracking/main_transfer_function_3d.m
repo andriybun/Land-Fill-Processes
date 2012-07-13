@@ -15,34 +15,22 @@ function main_transfer_function_3d()
     addpath('../Common/');
     tic;
 
-    %% Input parameters:
-    
-    % Time
-    start_date = struct();
-    start_date.year = 2012;
-    start_date.month = 1;
-    start_date.day = 1;
-    time_params.max_days = 30; % 365;                                                           % number of simulation days
-    time_params.time_discretization = 3600;                                                     % in seconds
-    time_params.intervals_per_day = 24 * 3600 / time_params.time_discretization;
-    num_intervals = time_params.max_days * time_params.intervals_per_day;                       % in {time step}
-    time_params.num_intervals = num_intervals;
-    time_params.days_elapsed = (0 : 1: (num_intervals-1)) / time_params.intervals_per_day;
-    
     %% Preparing data for simulation:
     
     % Get spatial_params characteristics of a landfill:
     spatial_params = define_geometry();
 
     % Determine probability distribution parameters corresponding to defined inputs:
-    lognrnd_param_definer = log_normal_params('../Common/opt_params_wt_matrix_domain.mat');
+    lognrnd_param_definer = log_normal_params('../Common/opt_params_wt_channel_domain.mat');
 
     % Fluid hydraulic parameters
     hydraulic_params = lognrnd_param_definer.hydraulic_params;
-    hydraulic_params.d = 1;                             % diffusion_coefficient
+    hydraulic_params.k_sat_ref = hydraulic_params.k_sat;                    % reference conductivity
+    hydraulic_params.k_sat = generate_conductivities(spatial_params);       % relative conductivity compared to reference conductivity
+    hydraulic_params.d = 1;                                 % diffusion_coefficient
     
     % Generate biogeochemical properties:
-    properties_array = generate_biogeochemical_properties_3d(spatial_params);
+    properties_array = generate_biogeochemical_properties_3d(spatial_params, hydraulic_params);
     
     % Generate precipitation data (specific, independent of area):
     rand('seed', 1);
@@ -52,13 +40,13 @@ function main_transfer_function_3d()
 %     file_name = '../Data/precip_braambergen.mat';
 %     [precipitation_intensity_time_vector, time_params, start_date] = read_precipitation_data_braambergen(file_name);
 
-    %% TESTING (let all the water flow out to check mass balance):
-    extra_days = 20;
-    time_params.max_days = time_params.max_days + extra_days;
-    time_params.num_intervals = time_params.max_days * time_params.intervals_per_day;                           % in {time step}
-    time_params.days_elapsed = (0 : 1: (time_params.num_intervals-1)) / time_params.intervals_per_day;
-    precipitation_intensity_time_vector = cat(2, precipitation_intensity_time_vector, zeros(1, extra_days * time_params.intervals_per_day));
-    %% END TESTING
+%     %% TESTING (let all the water flow out to check mass balance):
+%     extra_days = 20;
+%     time_params.max_days = time_params.max_days + extra_days;
+%     time_params.num_intervals = time_params.max_days * time_params.intervals_per_day;                           % in {time step}
+%     time_params.days_elapsed = (0 : 1: (time_params.num_intervals-1)) / time_params.intervals_per_day;
+%     precipitation_intensity_time_vector = cat(2, precipitation_intensity_time_vector, zeros(1, extra_days * time_params.intervals_per_day));
+%     %% END TESTING
 
     % Net amounts of precipitation from rainfall events entering each column / pathway:
     precipitation_in_time_vector = precipitation_intensity_time_vector * ...
@@ -115,7 +103,7 @@ function main_transfer_function_3d()
         idx_calc_3d = repmat(idx_calc, [1, 1, spatial_params.zn]);
         
         [mu(idx_calc_3d), sigma(idx_calc_3d)] = lognrnd_param_definer.get_params(...
-            hydraulic_params.k_sat ./ spatial_params.dz, ...
+            hydraulic_params.k_sat(idx_calc_3d) ./ spatial_params.dz, ...
             properties_array.effective_saturation(idx_calc_3d));
         
         % Set mu and sigma 0 and Infinity respectively for non-existing
@@ -141,6 +129,8 @@ function main_transfer_function_3d()
             idx_calc_layer = logical(zeros(size(mu)));
             idx_calc_layer(:, :, layer_idx) = idx_calc;
             scale = leachate_intercell_array(1, :, :, layer_idx-1);
+            scale = redistribute_flux(scale, properties_array.effective_saturation(:, :, layer_idx), ...
+                hydraulic_params.k_sat(:, :, layer_idx));
             scale = repmat(scale, [numel(t_vector), 1, 1]);
             breakthrough_cum(:, idx_calc) = scale(:, idx_calc) .* log_normal_cdf(t_vector, mu(idx_calc_layer), sigma(idx_calc_layer))';
             breakthrough = breakthrough_cum(2:end, :, :, :) - breakthrough_cum(1:end-1, :, :, :);
@@ -165,6 +155,25 @@ function main_transfer_function_3d()
         new_se = zeros(size(current_se));
         idx = (max_water_volume ~= 0);
         new_se(idx) = current_se(idx) + flx(idx) ./ max_water_volume(idx);
+    end
+
+    function k_sat_gen = generate_conductivities(spatial_params)
+        k_sat_gen = zeros(size(spatial_params.column_height_array));    % generated hydraulic conductivities
+        idx = spatial_params.column_height_array > 0;                   % cells for which conductivities are to be generated
+        %% SET PROBABILITY DISTRIBUTION OF CONDUCTIVITIES HERE:
+        randn('seed', 1);
+        pdf_mean = 5e-2;
+%         k_sat_gen(idx) = lognrnd(log(pdf_mean) - 1 / 8, 1, nnz(idx), 1);        % log-normal distribution
+        k_sat_gen(idx) = exprnd(1e-3 / pdf_mean, nnz(idx), 1);                  % exponential distribution
+%         k_sat_gen(idx) = 2 * pdf_mean * ones(nnz(idx), 1);                      % uniform distribution
+        k_sat_gen = repmat(k_sat_gen, [1, 1, spatial_params.zn]) .* spatial_params.is_landfill_array;
+    end
+
+    function adj_flux = redistribute_flux(init_flux, se, k_sat)
+        % initial flux to be redistributed
+        % effective saturation of the source layer cells
+        % hydraulic conductivity of the cells in the source layer
+        adj_flux = init_flux;
     end
 
 %     %% TODO:

@@ -8,12 +8,12 @@ function try_1dim_2domain_flow()
     start_date.year = 2012;
     start_date.month = 1;
     start_date.day = 1;
-    time_params.max_days = 1000;                                                                  % number of simulation days
-    time_params.time_discretization = 1;                                                   % in days
-    time_params.intervals_per_day = 1 / time_params.time_discretization;
-    num_intervals = time_params.max_days * time_params.intervals_per_day;                       % in {time step}
-    time_params.num_intervals = num_intervals;
-    time_params.days_elapsed = (0 : 1: (num_intervals-1)) / time_params.intervals_per_day;
+    time_params.max_days = 100;                                                           % number of simulation days
+    time_params.intervals_per_day = 24;
+    time_params.time_discretization = 1 / time_params.intervals_per_day;                  % in days
+    time_params.num_intervals = time_params.max_days * time_params.intervals_per_day;     % in {time step}
+    time_params.days_elapsed = (0 : 1: (time_params.num_intervals-1)) / time_params.intervals_per_day;
+    num_intervals = time_params.num_intervals;
     
     % Geometry params
     spatial_params = struct();
@@ -33,13 +33,13 @@ function try_1dim_2domain_flow()
     precipitation_intensity_time_vector(1) = 1e-4;
     
     % Determine probability distribution parameters corresponding to defined inputs:
-    lognrnd_param_definer(1) = log_normal_params('opt_params_wt_matrix_domain.mat');
-    lognrnd_param_definer(2) = log_normal_params('opt_params_wt_channel_domain.mat');
+    lognrnd_param_definer(1) = log_normal_params('../Common/opt_params_wt_matrix_domain.mat');
+    lognrnd_param_definer(2) = log_normal_params('../Common/opt_params_wt_channel_domain.mat');
     
     % Fluid velocity parameters (1st - matrix domain; 2nd - channel domain)
     hydraulic_params.k_sat_ref = [lognrnd_param_definer(1).hydraulic_params.k_sat, ...
                                   lognrnd_param_definer(2).hydraulic_params.k_sat];             % 
-	hydraulic_params.k_sat     = [1, 1];
+	hydraulic_params.k_sat     = [10, 1e-1];
     hydraulic_params.theta_r   = [lognrnd_param_definer(1).hydraulic_params.theta_r, ...
                                   lognrnd_param_definer(2).hydraulic_params.theta_r];           % residual water content
     hydraulic_params.theta_s   = [lognrnd_param_definer(1).hydraulic_params.theta_s, ...
@@ -49,10 +49,16 @@ function try_1dim_2domain_flow()
     % Result
     leachate_flux = zeros(horzcat(num_intervals, size(spatial_params.dz)));
     
+    progr = floor(time_params.num_intervals / 10);
+    
     for t = 1:num_intervals
         [leachate_flux, properties_array] = transport_lognormal(leachate_flux, t, ...
             properties_array, precipitation_intensity_time_vector(t), spatial_params, ...
             hydraulic_params, time_params, lognrnd_param_definer);
+        % Display progress
+        if (mod(t, progr) == 0)
+            disp (t / time_params.num_intervals * 100);
+        end
     end
 
     plot(time_params.days_elapsed, sum(leachate_flux, 3));
