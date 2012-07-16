@@ -20,17 +20,13 @@ function main_1d_2domain_exchange_flow()
     spatial_params.dx = [1, 1];
     chan_width = 0.1;
     spatial_params.dy = [1 - chan_width, chan_width];
-    spatial_params.dz = ones(10, 2);
+    spatial_params.dz = 1;
+    spatial_params.zn = 10;
+    spatial_params.is_landfill_array = ones(spatial_params.zn, 2);
     
-    % initial SE
-    properties_array = struct();
-    properties_array.effective_saturation = ones(size(spatial_params.dz));
-    properties_array.effective_saturation(:, 1) = 0.3;
-    properties_array.effective_saturation(:, 2) = 0.15;
-
     % Characteristics of eschange between domains (rate of flow from matrix
     % domain to channel domain)
-    z = cumsum(spatial_params.dz(:, 1)) - spatial_params.dz(1, 1);
+    z = cumsum(ones(size(spatial_params.is_landfill_array(:, 1))), 1) - spatial_params.dz;
     exchange_rate = 0.3 * (1 - 1 / max(z)^(1/2) * z.^(1/2));
 %     exchange_rate = 0.3 * (1 - 1 / max(z) * z);
     
@@ -46,25 +42,26 @@ function main_1d_2domain_exchange_flow()
     precipitation_intensity_time_vector = cat(2, precipitation_intensity_time_vector, zeros(1, extra_days * time_params.intervals_per_day));
     %% END TESTING
     
-%     precipitation_intensity_time_vector = zeros(1, num_intervals);
-%     precipitation_intensity_time_vector(1) = 1e-4;
+    precipitation_intensity_time_vector = zeros(1, num_intervals);
+    precipitation_intensity_time_vector(1) = 1e-4;
     
     % Determine probability distribution parameters corresponding to defined inputs:
     lognrnd_param_definer(1) = log_normal_params('../Common/opt_params_wt_matrix_domain.mat');
     lognrnd_param_definer(2) = log_normal_params('../Common/opt_params_wt_channel_domain.mat');
     
     % Fluid velocity parameters (1st - matrix domain; 2nd - channel domain)
-    hydraulic_params.k_sat_ref = [lognrnd_param_definer(1).hydraulic_params.k_sat, ...
-                                  lognrnd_param_definer(2).hydraulic_params.k_sat];             % 
-	hydraulic_params.k_sat     = [5e+1, 1e-1];
-    hydraulic_params.theta_r   = [lognrnd_param_definer(1).hydraulic_params.theta_r, ...
-                                  lognrnd_param_definer(2).hydraulic_params.theta_r];           % residual water content
-    hydraulic_params.theta_s   = [lognrnd_param_definer(1).hydraulic_params.theta_s, ...
-                                  lognrnd_param_definer(2).hydraulic_params.theta_s];           % saturated water content
-    hydraulic_params.d         = [1, 1];                                                        % diffusion_coefficient
+    % Note: vectors must be row vectors
+    hydraulic_params            = aos_to_soa([lognrnd_param_definer(1).hydraulic_params
+                                              lognrnd_param_definer(2).hydraulic_params]');
+    hydraulic_params.k_sat_ref  = hydraulic_params.k_sat;
+    hydraulic_params.k_sat      = [50, 1e-2];
+	hydraulic_params.d          = [1, 1];                                                        % diffusion_coefficient
+
+    % initial SE
+    properties_array = generate_biogeochemical_properties_3d(spatial_params, hydraulic_params);
     
     % Result
-    leachate_flux = zeros(horzcat(num_intervals, size(spatial_params.dz)));
+    leachate_flux = zeros(horzcat(num_intervals, size(spatial_params.is_landfill_array)));
     
     progr = floor(time_params.num_intervals / 10);
     
@@ -106,7 +103,7 @@ function main_1d_2domain_exchange_flow()
         sigma = zeros(size(properties_array.effective_saturation));
         for idx = 1:num_domains
             [mu(:, idx), sigma(:, idx)] = lognrnd_param_definer(idx).get_params(...
-                hydraulic_params.k_sat(idx) ./ spatial_params.dz(:, idx), properties_array.effective_saturation(:, idx));
+                hydraulic_params.k_sat(idx) ./ spatial_params.dz, properties_array.effective_saturation(:, idx));
         end
         skip_cell_idx = (spatial_params.dz == 0);
         mu(skip_cell_idx) = 0;
@@ -128,7 +125,7 @@ function main_1d_2domain_exchange_flow()
             + permute(breakthrough, [1 3 2]);
         
         % Calculate breakthrough (other layers)
-        for cellIdx = 2:size(spatial_params.dz, 1)
+        for cellIdx = 2:spatial_params.zn
             flux = squeeze(leachate_intercell_array(t, cellIdx - 1, :))';
             exchange = exchange_rate(cellIdx) * flux(1);
             flux = flux + [-exchange, exchange];
@@ -146,10 +143,10 @@ function main_1d_2domain_exchange_flow()
     end
         
     function new_se = alter_effective_saturation(current_se, flx, spatial_params, hydraulic_params)
-        vert_size = size(spatial_params.dz, 1);
+        vert_size = size(spatial_params.is_landfill_array, 1);
         dx = reproduce(spatial_params.dx, vert_size);
         dy = reproduce(spatial_params.dy, vert_size);
-        column_volume_array = spatial_params.dz .* dx .* dy;
+        column_volume_array = spatial_params.dz .* spatial_params.is_landfill_array .* dx .* dy;
         max_water_volume = (reproduce(hydraulic_params.theta_s, vert_size) - reproduce(hydraulic_params.theta_r, vert_size)) ...
             .* column_volume_array;
         new_se = zeros(size(current_se));

@@ -1,4 +1,4 @@
-function try_1dim_flow()
+function main_1d_flow()
     clc;
     addpath('../Common/');
 
@@ -7,8 +7,8 @@ function try_1dim_flow()
     start_date.year = 2012;
     start_date.month = 1;
     start_date.day = 1;
-    time_params.max_days = 1500;                                                         % number of simulation days
-    time_params.intervals_per_day = 1;
+    time_params.max_days = 250;                                                         % number of simulation days
+    time_params.intervals_per_day = 24;
     time_params.time_discretization = 1 / time_params.intervals_per_day;                 % in days
     time_params.num_intervals = time_params.max_days * time_params.intervals_per_day;    % in {time step}
     time_params.days_elapsed = (0 : 1: (time_params.num_intervals-1)) / time_params.intervals_per_day;
@@ -18,11 +18,10 @@ function try_1dim_flow()
     spatial_params = struct();
     spatial_params.dx = 1;
     spatial_params.dy = 1;
-    spatial_params.dz = ones(8, 1);                     % vertical dimensions of spatial_params.dz, forming column
-    spatial_params.dz(5:end) = 0;
-    
-    properties_array = struct();
-    properties_array.effective_saturation = 0.5 * ones(size(spatial_params.dz));    % initial SE
+    spatial_params.dz = 1;                              % vertical dimensions of spatial_params.dz, forming column
+    spatial_params.zn = 8;
+    spatial_params.is_landfill_array = ones(spatial_params.zn, 1);
+    spatial_params.is_landfill_array(5:end) = 0;
     
 %     file_name = '../Data/precipitation_daily_KNMI_20110908.txt';
 %     [precipitation_intensity_time_vector, time_params, start_date] = read_precipitation_data_csv(file_name);
@@ -35,11 +34,14 @@ function try_1dim_flow()
     % Fluid hydraulic parameters
     hydraulic_params = lognrnd_param_definer.hydraulic_params;
     hydraulic_params.k_sat_ref = hydraulic_params.k_sat;    % reference conductivity
-    hydraulic_params.k_sat = 1;                             % relative conductivity compared to reference conductivity
+    hydraulic_params.k_sat = 50;                            % relative conductivity compared to reference conductivity
     hydraulic_params.d = 1;                                 % diffusion_coefficient
-    
+
+	% initial SE
+    properties_array = generate_biogeochemical_properties_3d(spatial_params, hydraulic_params);
+
     % Result
-    leachate_flux = zeros(num_intervals, numel(spatial_params.dz));
+    leachate_flux = zeros(num_intervals, numel(spatial_params.is_landfill_array));
 
     progr = floor(time_params.num_intervals / 10);
     
@@ -60,7 +62,7 @@ function try_1dim_flow()
             spatial_params, hydraulic_params, time_params, lognrnd_param_definer)
         [mu, sigma] = lognrnd_param_definer.get_params(...
             hydraulic_params.k_sat ./ spatial_params.dz, properties_array.effective_saturation);
-        skip_cell_idx = (spatial_params.dz == 0);
+        skip_cell_idx = (spatial_params.is_landfill_array == 0);
         mu(skip_cell_idx) = 0;
         sigma(skip_cell_idx) = Inf;
         
@@ -70,7 +72,7 @@ function try_1dim_flow()
         breakthrough_cum = scale * log_normal_cdf(t_vector, mu(1), sigma(1));
         breakthrough = breakthrough_cum(2:end) - breakthrough_cum(1:end-1);
         leachate_intercell_array(t:end, 1) = leachate_intercell_array(t:end, 1) + breakthrough';
-        for cell_idx = 2:numel(spatial_params.dz)
+        for cell_idx = 2:spatial_params.zn
             breakthrough_cum = leachate_intercell_array(t, cell_idx - 1) ...
                 * log_normal_cdf(t_vector, mu(cell_idx), sigma(cell_idx));
             breakthrough = breakthrough_cum(2:end) - breakthrough_cum(1:end-1);
@@ -83,7 +85,7 @@ function try_1dim_flow()
     end
         
     function new_se = alter_effective_saturation(current_se, flx, spatial_params, hydraulic_params)
-        column_volume_array = spatial_params.dz .* spatial_params.dx .* spatial_params.dy;
+        column_volume_array = spatial_params.dz .* spatial_params.is_landfill_array .* spatial_params.dx .* spatial_params.dy;
         max_water_volume = (hydraulic_params.theta_s - hydraulic_params.theta_r) * column_volume_array;
         new_se = zeros(size(current_se));
         idx = (max_water_volume ~= 0);

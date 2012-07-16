@@ -1,6 +1,4 @@
 function properties_array = generate_biogeochemical_properties_3d(spatial_params, hydraulic_params)
-    addpath('../Richards/');
-
     is_landfill_array = spatial_params.is_landfill_array;
     is_data_idx = (is_landfill_array > 0);
     sz = size(is_landfill_array);
@@ -9,11 +7,7 @@ function properties_array = generate_biogeochemical_properties_3d(spatial_params
     if nargin < 2
         properties_array_soa.effective_saturation = 0.3 * ones(sz);
     else
-        % Calculate hydraulic pressure; we assume water table at the bottom
-        % of landfill
-        hw = cumsum(ones(size(spatial_params.is_landfill_array)), 3) - spatial_params.zn - spatial_params.dz / 2;
-        hw = hw .* spatial_params.is_landfill_array;
-        [~, ~, properties_array_soa.effective_saturation] = van_genuchten(hw, hydraulic_params);
+        properties_array_soa.effective_saturation = get_effective_saturation(spatial_params, hydraulic_params);
     end
     
     %% STUB:
