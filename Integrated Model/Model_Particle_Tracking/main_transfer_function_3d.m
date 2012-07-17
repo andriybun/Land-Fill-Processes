@@ -9,8 +9,6 @@ function main_transfer_function_3d()
 %     - log-normal transport function used to model travel times;
 %     - variable moisture content of columns affects conductivity;
 
-%% TODO: warning if time step is too big and there is a danger of overflow
-    
     clc;
     addpath('../Common/');
     tic;
@@ -160,7 +158,7 @@ function main_transfer_function_3d()
     function k_sat_gen = generate_conductivities(spatial_params)
         k_sat_gen = zeros(size(spatial_params.column_height_array));    % generated hydraulic conductivities
         idx = spatial_params.column_height_array > 0;                   % cells for which conductivities are to be generated
-        %% SET PROBABILITY DISTRIBUTION OF CONDUCTIVITIES HERE:
+        % SET PROBABILITY DISTRIBUTION OF CONDUCTIVITIES HERE:
         randn('seed', 1);
         pdf_mean = 5e-2;
 %         k_sat_gen(idx) = lognrnd(log(pdf_mean) - 1 / 8, 1, nnz(idx), 1);        % log-normal distribution

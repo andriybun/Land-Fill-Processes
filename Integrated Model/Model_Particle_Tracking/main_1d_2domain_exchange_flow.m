@@ -18,7 +18,7 @@ function main_1d_2domain_exchange_flow()
     % Geometry params
     spatial_params = struct();
     spatial_params.dx = [1, 1];
-    chan_width = 0.1;
+    chan_width = 0.03;
     spatial_params.dy = [1 - chan_width, chan_width];
     spatial_params.dz = 1;
     spatial_params.zn = 10;
@@ -27,7 +27,7 @@ function main_1d_2domain_exchange_flow()
     % Characteristics of eschange between domains (rate of flow from matrix
     % domain to channel domain)
     z = cumsum(ones(size(spatial_params.is_landfill_array(:, 1))), 1) - spatial_params.dz;
-    exchange_rate = 0.3 * (1 - 1 / max(z)^(1/2) * z.^(1/2));
+    exchange_rate = 0.2 * (1 - 1 / max(z)^(1/2) * z.^(1/2));
 %     exchange_rate = 0.3 * (1 - 1 / max(z) * z);
     
     file_name = '../Data/precipitation_daily_KNMI_20110908.txt';
@@ -42,8 +42,8 @@ function main_1d_2domain_exchange_flow()
     precipitation_intensity_time_vector = cat(2, precipitation_intensity_time_vector, zeros(1, extra_days * time_params.intervals_per_day));
     %% END TESTING
     
-    precipitation_intensity_time_vector = zeros(1, num_intervals);
-    precipitation_intensity_time_vector(1) = 1e-4;
+%     precipitation_intensity_time_vector = zeros(1, num_intervals);
+%     precipitation_intensity_time_vector(1) = 1e-4;
     
     % Determine probability distribution parameters corresponding to defined inputs:
     lognrnd_param_definer(1) = log_normal_params('../Common/opt_params_wt_matrix_domain.mat');
@@ -111,9 +111,11 @@ function main_1d_2domain_exchange_flow()
         
         % Time vector
         t_vector = 0 : time_params.time_discretization : time_params.time_discretization * (num_intervals - t + 1);
-        
+
         % Water input at time t
-        scale = scale .* spatial_params.dx .* spatial_params.dy;
+        entrance_rate = zeros(size(spatial_params.dy));
+        entrance_rate(1) = sum(spatial_params.dy);
+        scale = scale .* spatial_params.dx .* entrance_rate;
         exchange = exchange_rate(1) * scale(1);
         scale = scale + [-exchange, exchange];
         scale = reproduce(scale, numel(t_vector));

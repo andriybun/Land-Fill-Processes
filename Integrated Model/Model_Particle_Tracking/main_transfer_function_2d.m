@@ -10,10 +10,9 @@ function main_transfer_function_2d()
 %     - variable moisture content of columns affects conductivity;
 %
 
-%% TODO: warning if time step is too big and there is a danger of overflow
-
     clc;
     addpath('../Common/')
+    tic;
 
     %% Preparing data for simulation:
     
@@ -21,19 +20,18 @@ function main_transfer_function_2d()
     spatial_params = define_geometry();
 
     % Determine probability distribution parameters corresponding to defined inputs:
-    lognrnd_param_definer = log_normal_params('../Common/opt_params_wt_matrix_domain.mat');
+    lognrnd_param_definer = log_normal_params('../Common/opt_params_wt_channel_domain.mat');
 
     % Fluid hydraulic parameters
     hydraulic_params = lognrnd_param_definer.hydraulic_params;
-    hydraulic_params.k_sat_ref = hydraulic_params.k_sat;    % reference conductivity
-    hydraulic_params.k_sat = 1;                             % relative conductivity compared to reference conductivity
-    hydraulic_params.d = 1;                             % diffusion_coefficient
+    hydraulic_params.k_sat_ref = hydraulic_params.k_sat;                    % reference conductivity
+    hydraulic_params.k_sat = generate_conductivities(spatial_params);       % relative conductivity compared to reference conductivity
+    hydraulic_params.d = 1;                                                 % diffusion_coefficient
     
     % Generate biogeochemical properties:
     properties_array = generate_biogeochemical_properties_2d(spatial_params);
     
     % Generate precipitation data (specific, independent of area):
-    rand('seed', 1);
 %     precipitation_intensity_time_vector = generate_precipitation_data(start_date, time_params);
     file_name = '../Data/precipitation_daily_KNMI_20110908.txt';
     [precipitation_intensity_time_vector, time_params, start_date] = read_precipitation_data_csv(file_name);
@@ -85,6 +83,7 @@ function main_transfer_function_2d()
 %     plot(time_params.days_elapsed, spatial_params.num_columns * precipitation_in_time_vector, 'r');
     hold off;
     
+    toc;
     return
     
     function [breakthrough, breakthrough_old, properties_array] = transport_lognormal(t, properties_array, scale, ...
@@ -99,7 +98,7 @@ function main_transfer_function_2d()
         idx_calc = (spatial_params.column_height_array ~= 0);
         
         [mu(idx_calc), sigma(idx_calc)] = lognrnd_param_definer.get_params(...
-            hydraulic_params.k_sat ./ spatial_params.column_height_array(idx_calc), ...
+            hydraulic_params.k_sat(idx_calc) ./ spatial_params.column_height_array(idx_calc), ...
             properties_array.effective_saturation(idx_calc));
         
         breakthrough_cum = zeros(num_intervals - t + 2, size(mu, 1), size(mu, 2));
@@ -110,7 +109,7 @@ function main_transfer_function_2d()
         mu_old = zeros(size(spatial_params.column_height_array));
         sigma_old = zeros(size(spatial_params.column_height_array));
         [mu_old(idx_calc), sigma_old(idx_calc)] = lognrnd_param_definer.get_params(...
-            hydraulic_params.k_sat ./ spatial_params.column_height_array(idx_calc), 0.5);
+            hydraulic_params.k_sat(idx_calc) ./ spatial_params.column_height_array(idx_calc), 0.5);
 
         breakthrough_cum_old = zeros(num_intervals - t + 2, size(mu, 1), size(mu, 2));
         breakthrough_cum_old(:, (idx_calc)) = scale * log_normal_cdf(t_vector, mu_old(idx_calc), sigma_old(idx_calc))';
@@ -125,6 +124,17 @@ function main_transfer_function_2d()
         new_se(idx) = current_se(idx) + flx(idx) ./ max_water_volume(idx) .* spatial_params.column_height_array(idx);
     end
 
+    function k_sat_gen = generate_conductivities(spatial_params)
+        k_sat_gen = zeros(size(spatial_params.column_height_array));    % generated hydraulic conductivities
+        idx = spatial_params.column_height_array > 0;                   % cells for which conductivities are to be generated
+        % SET PROBABILITY DISTRIBUTION OF CONDUCTIVITIES HERE:
+        randn('seed', 1);
+        pdf_mean = 1e-0;
+%         k_sat_gen(idx) = lognrnd(log(pdf_mean) - 1 / 8, 1, nnz(idx), 1);        % log-normal distribution
+        k_sat_gen(idx) = exprnd(1e-3 / pdf_mean, nnz(idx), 1);                  % exponential distribution
+%         k_sat_gen(idx) = 2 * pdf_mean * ones(nnz(idx), 1);                      % uniform distribution
+    end
+
     %% TODO:
     function res = solute_transport(properties_array, spatial_params, hydraulic_params, time_params)
         
@@ -132,9 +142,7 @@ function main_transfer_function_2d()
         dt = time_params.time_discretization;
         l = spatial_params.column_height_array;
         v = properties_array.mean_v;
-        
-        
-        
+
         solute_concentration = -(1 ./ 2) .* erf((1 ./ 2) .* (-x + v .* dt) ./ (sqrt(dt) .* sqrt(d))) + ...
             (1 ./ 2) .* erf((1 ./ 2) .* (-x + l + v .* dt) ./ (sqrt(dt) .* sqrt(d)));
     end

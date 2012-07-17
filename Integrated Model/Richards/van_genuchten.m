@@ -27,7 +27,7 @@ function [k, theta, se] = van_genuchten(hw, vg_par)
     
     function res_ar = reproduce(sample, ar)
         sz = size(sample);
-        if numel(ar) == 1
+        if numel(ar) == 1 || isequal(sz, size(ar))
             res_ar = ar;
         elseif sz(1) == size(ar, 1)
             res_ar = repmat(ar, [1, sz(2)]);
