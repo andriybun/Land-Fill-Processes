@@ -3,3 +3,4 @@
 try_*
 *.mat
 .~lock.*
+*.bak
