@@ -2,10 +2,12 @@ classdef solute_transport_class
     properties (Access = public)
         l;
         d;
-        c_curr;              % initial concentration
+        c_ini;              % initial concentration
+        c_curr;             % current concentration (relative to the initial)
     end
     
     properties (Access = private)
+        EPSILON;
         domain_type;        % type of domain (1 - matrix, 2 - channel)
         ic_type;            % type of initial conditions (1 - initial concentration, or 2 - initial injection)
         is_initialized;     % 
@@ -16,35 +18,49 @@ classdef solute_transport_class
         udt;                % auxiliary variable to store flow history
         pdf_handle;         % handle of PDF valid for our initial conditions
         domain_size;        % size of domain
-        c_curr_prev;        % initial concentration on previous step
+        c_prev;             % concentration on previous step
     end
     
     methods (Access = public)
-        function self = solute_transport_class(l, d, domain_type, ic_type)
-            self.l = l;
-            self.d = d;
-            self.c_curr = ones(size(l));             % initialize concentration
-            self.c_curr_prev = self.c_curr;
-            self.domain_size = size(l);
-            self.is_initialized = false(self.domain_size);
-            self.udt = zeros(self.domain_size);
-            self.u_ini = nan(self.domain_size);
-            self.ic_type = ic_type;
-            self.domain_type = domain_type;
-            self.t_delay = nan(self.domain_size);
-            self.t_prev = 0;
-            switch ic_type 
-                case 1
-                    self.pdf_handle = @self.ini_concentration;
-                case 2;
-                    self.pdf_handle = @self.instant_influx;
-                otherwise
-                    error('Error! Wrong IC type.');
+        function self = solute_transport_class(l, d, c_ini, domain_type, ic_type)
+            self.EPSILON = 1e-9;
+            if nargin > 0
+                self.l = l;
+                self.d = d;
+                self.c_ini = c_ini;
+                self.c_curr = ones(size(l));             % initialize concentration
+                self.c_prev = self.c_curr;
+                self.domain_size = size(l);
+                self.is_initialized = false(self.domain_size);
+                self.udt = zeros(self.domain_size);
+                self.u_ini = nan(self.domain_size);
+                self.ic_type = ic_type;
+                self.domain_type = domain_type;
+                self.t_delay = nan(self.domain_size);
+                self.t_prev = 0;
+                switch ic_type
+                    case 1
+                        self.pdf_handle = @self.ini_concentration;
+                    case 2;
+                        self.pdf_handle = @self.instant_influx;
+                    otherwise
+                        error('Error! Wrong IC type.');
+                end
+            else
+                self.is_initialized = false;
             end
         end
         
+        function self = set_c_ini(self, c_ini)
+            self.c_ini = c_ini;
+        end
+        
+        function c = get_c_ini(self)
+            c = self.c_ini;
+        end
+        
         function c = get_c_curr(self)
-            c = self.c_curr;
+            c = self.c_curr .* self.c_ini;
         end
         
         function [self, result] = flush(self, t, u)
@@ -63,48 +79,31 @@ classdef solute_transport_class
                 self.t_delay(idx_initialize) = t;
             end
             
-            t = t - self.t_delay(self.is_initialized);
+            t = repmat(t, self.domain_size);
+            t(self.is_initialized) = t(self.is_initialized) - self.t_delay(self.is_initialized);
             dt = t - self.t_prev;
             is_initial_step = (t == 0);
             
-            self.c_curr = self.c_curr_prev;
+            self.c_curr = self.c_prev;
             
             switch self.domain_type
                 case 1
-%                     result(self.is_initialized) = self.pdf_handle(t, self.u_ini(self.is_initialized));
-                    self.c_curr = self.pdf_handle(t, self.u_ini(self.is_initialized));
+                    self.c_curr(self.is_initialized) = self.pdf_handle(t(self.is_initialized), self.u_ini(self.is_initialized));
                     result(is_initial_step) = 0;
                 case 2
-%                     if t == 0
-%                         result(self.is_initialized) = self.pdf_handle(t, self.u_ini(self.is_initialized));
-%                     else
-%                         ratio = u ./ self.u_ini;
-%                         % tweak time axis
-%                         self.udt = self.udt + dt .* ratio;
-%                         % adjust along y-axis along with changes in 
-%                         result(self.is_initialized) = self.pdf_handle(self.udt, self.u_ini(self.is_initialized)) .* ratio;
-%                     end
                     ratio = u ./ self.u_ini;
                     % tweak time axis
                     self.udt = self.udt + dt .* ratio;
-                    self.c_curr = self.pdf_handle(self.udt, self.u_ini(self.is_initialized));
-                    result(is_initial_step) = Inf;
+                    self.c_curr = self.pdf_handle(self.udt, self.u_ini);
             end
             
+            result(~is_initial_step) = (self.c_curr(~is_initial_step) - self.c_prev(~is_initial_step));
             
-            result(~is_initial_step) = (self.c_curr(~is_initial_step) - self.c_curr_prev(~is_initial_step)) ./ dt(~is_initial_step);
-%             result = max(-self.c_curr ./ dt, result);
-%             
-%             if t ~= 0
-%                 if self.t_prev == 0
-%                     self.c_curr = self.c_curr + 2 .* result .* dt;
-%                 else
-%                     self.c_curr = self.c_curr + result .* dt;
-%                 end
-%             end
+            result = result .* self.c_ini;
+            
             self.u_prev = u;
             self.t_prev = t;
-            self.c_curr_prev = self.c_curr;
+            self.c_prev = self.c_curr;
         end
     end
     
@@ -113,22 +112,17 @@ classdef solute_transport_class
         function y = ini_concentration(self, t, u)
             l = self.l;
             d = self.d;
-%             sqrt_t = sqrt(t);
-%             sqrt_d = sqrt(d);
-%             sqrt_pi = sqrt(pi);
-%             tmp1 = (1 ./ 4) .* (l .^ 2 + u .^ 2 .* t .^ 2) ./ (t .* d);
-%             y = -(1 ./ 2) .* (u .* erf((1 ./ 2) .* u .* sqrt_t ./ sqrt_d) + ...
-%                 u .* erf((1 ./ 2) .* (l - u .* t) ./ (sqrt_t .* sqrt_d)) + ...
-%                 sqrt_d .* exp((1 ./ 4) .* l .^ 2 ./ (t .* d) - tmp1) ./ (sqrt_t .* sqrt_pi) - ...
-%                 sqrt_d .* exp((1 ./ 2) .* l .* u ./ d - tmp1) ./ (sqrt_t .* sqrt_pi));
-%             y(t == 0) = Inf;
             % Integral concentration left in the interval (-infinity, l]
-            y = 1 ./ 2 .* (1 + ...
-                2 .* sqrt(d .* t) .* exp((1 ./ 2) .* l .* u ./ d - (1 ./ 4) .* (l .^ 2 + u .^ 2 .* t .^ 2) ./ (d .* t)) ./ (l .* sqrt(pi)) - ...
-                2 .* sqrt(d .* t) .* exp((1 ./ 4) .* l .^ 2 ./ (d .* t) - (1 ./ 4) .* (l .^ 2 + u .^ 2 .* t .^ 2) ./ (d .* t)) ./ (l .* sqrt(pi)) - ...
-                u .* t .* erf((1 ./ 2) .* (l - u .* t) ./ sqrt(d .* t)) ./ l - ...
-                u .* t .* erf((1 ./ 2) .* u .* sqrt(t) ./ sqrt(d)) ./ l + ...
-                erf((1 ./ 2) .* (l - u .* t) ./ sqrt(d .* t)));
+            tmp_sqrt_d_t = sqrt(d .* t);
+            tmp_l_sqrt_pi = (l .* sqrt(pi));
+            tmp_tmp = 0.25 .* (l .^ 2 + u .^ 2 .* t .^ 2) ./ (d .* t);
+            tmp_erf = 0.5 .* erf(0.5 .* (l - u .* t) ./ tmp_sqrt_d_t);
+            y = 0.5 + ...
+                tmp_sqrt_d_t .* exp(0.5 .* l .* u ./ d - tmp_tmp) ./ tmp_l_sqrt_pi - ...
+                tmp_sqrt_d_t .* exp(0.25 .* l .^ 2 ./ (d .* t) - tmp_tmp) ./ tmp_l_sqrt_pi - ...
+                u .* t .* tmp_erf ./ l - ...
+                0.5 .* u .* t .* erf(0.5 .* u .* sqrt(t) ./ sqrt(d)) ./ l + ...
+                tmp_erf;
             y(t == 0) = 1;
         end
         
@@ -137,13 +131,10 @@ classdef solute_transport_class
         function y = instant_influx(self, t, u)
             l = self.l;
             d = self.d;
-%             y = (1 ./ 4) .* (-l .* u .* t + 2 .* d .* t - l .^ 2) .* exp(-(1 ./ 4) .* (l - u .* t) .^ 2 ./ (d .* t)) ./ ...
-%                 (l .* u .* sqrt(pi .* d .* t .^ 5));
-%             y(t == 0) = 0;
             % Integral concentration left in the interval (-infinity, l]
-            y = 1 ./ 2 .* (1 - ...
-                2 .* sqrt(d) .* exp((1 ./ 2) .* l .* u ./ d - (1 ./ 4) .* (l .^ 2 + u .^ 2 .* t .^ 2) ./ (d .* t)) ./ (u .* sqrt(pi .* t)) + ...
-                erf((1 ./ 2) .* (l - u .* t) ./ sqrt(d .* t)));
+            y = 0.5 .* (1 - ...
+                2 .* sqrt(d) .* exp(0.5 .* l .* u ./ d - 0.25 .* (l .^ 2 + u .^ 2 .* t .^ 2) ./ (d .* t)) ./ (u .* sqrt(pi .* t)) + ...
+                erf(0.5 .* (l - u .* t) ./ sqrt(d .* t)));
             y(t == 0) = 1;
         end
     end
