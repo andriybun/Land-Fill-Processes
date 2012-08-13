@@ -55,9 +55,9 @@ classdef solute_residence_generator
             
             switch ic_type
                 case 1
-                    self.cdf_handle = @self.cde_ic;
+                    self.cdf_handle = @self.cdf_ic;
                 case 2;
-                    self.cdf_handle = @self.cde_if;
+                    self.cdf_handle = @self.cdf_if;
                 otherwise
                     error('Error! Wrong IC type.');
             end
@@ -94,17 +94,23 @@ classdef solute_residence_generator
                 y = self.cdf_handle(t, l, d, u) - rn(first_cell_idx:last_cell_idx); 
             end
         end
+        
+        function self = set_l(l)
+            self.l = l;
+        end
+        
+        function self = set_d(d)
+            self.d = d;
+        end
+        
+        function self = set_u(u)
+            self.u = u;
+        end
     end
     
-    methods (Access = private)        
+    methods (Static)
         % Initial concentration through cell, clean water input
-        function y = cde_ic(self, t, l, d, u)
-            if nargin < 3
-                l = self.l;
-                d = self.d;
-                u = self.u;
-            end
-
+        function y = cdf_ic(t, l, d, u)
             % Integral concentration left in the interval (-infinity, l]
             tmp_sqrt_d_t = sqrt(d .* t);
             tmp_l_sqrt_pi = (l .* sqrt(pi));
@@ -121,18 +127,57 @@ classdef solute_residence_generator
         
         % Zero initial concentration through cell, instantaneous injection
         % of solute at t = 0
-        function y = cde_if(self, t, l, d, u)
-            if nargin < 3
-                l = self.l;
-                d = self.d;
-                u = self.u;
-            end
-            
+        function y = cdf_if(t, l, d, u)
             % Integral concentration left in the interval (-infinity, l]
             y = 0.5 .* (1 - ...
                 2 .* sqrt(d) .* exp(0.5 .* l .* u ./ d - 0.25 .* (l .^ 2 + u .^ 2 .* t .^ 2) ./ (d .* t)) ./ (u .* sqrt(pi .* t)) + ...
                 erf(0.5 .* (l - u .* t) ./ sqrt(d .* t)));
             y(t == 0) = 1;
+        end
+    
+        function t_gen = rng(l, d, u, ic_type, varargin)
+            if numel(varargin) == 0
+                sz = size(l);
+                num_cells = prod(sz);
+                batch_size = 50;
+                num_batches = ceil(num_cells / batch_size);
+                ini_t = ones(sz);
+                options = optimset('Display', 'off'); % , 'TolX', self.EPSILON
+                t_gen = nan(sz);
+                first_cell_idx = 1;
+                rn = unifrnd(0, 1, sz);
+                for idx = 1:num_batches
+                    last_cell_idx = min(num_cells, first_cell_idx + batch_size - 1);
+                    t_gen(first_cell_idx:last_cell_idx) = lsqnonlin(@f, ini_t(first_cell_idx:last_cell_idx), ...
+                        zeros(last_cell_idx - first_cell_idx + 1, 1), inf(last_cell_idx - first_cell_idx + 1, 1) , options);
+                    first_cell_idx = last_cell_idx + 1;
+                end
+            end
+            
+            return
+            
+            function y = f(t)
+                l_int = l;
+                d_int = d;
+                u_int = u;
+                if numel(l) > 1
+                    l_int = l(first_cell_idx:last_cell_idx);
+                end
+                if numel(d) > 1
+                    d_int = d(first_cell_idx:last_cell_idx);
+                end
+                if numel(u) > 1
+                    u_int = u(first_cell_idx:last_cell_idx);
+                end
+                switch ic_type
+                    case 1
+                        y = solute_residence_generator.cdf_ic(t, l_int, d_int, u_int) - rn(first_cell_idx:last_cell_idx);
+                    case 2;
+                        y = solute_residence_generator.cdf_if(t, l_int, d_int, u_int) - rn(first_cell_idx:last_cell_idx);
+                    otherwise
+                        error('Error! Wrong IC type.');
+                end
+            end
         end
     end
 end
