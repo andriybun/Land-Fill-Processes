@@ -43,10 +43,18 @@ classdef solute_residence_generator
             if numel(l) > 1
                 self.sz = size(l);
                 self.l_is_vector = true;
-            elseif numel(u) > 1
+            end
+            if numel(u) > 1
+                if self.l_is_vector && ~isequal(size(u), self.sz)
+                    error('Dimensions error: input parameters'' dimensions do not agree')
+                end
                 self.sz = size(u);
                 self.u_is_vector = true;
-            elseif numel(d) > 1
+            end
+            if numel(d) > 1
+                if (self.l_is_vector || self.u_is_vector) && ~isequal(size(d), self.sz)
+                    error('Dimensions error: input parameters'' dimensions do not agree')
+                end
                 self.sz = size(d);
                 self.d_is_vector = true;
             end
@@ -66,7 +74,7 @@ classdef solute_residence_generator
         function t_gen = generate(self)
             rn = unifrnd(0, 1, self.sz);
             num_cells = prod(self.sz);
-            ini_t = ones(self.sz);
+            ini_t = 1e-1 ./ self.u .* ones(self.sz);
             options = optimset('Display', 'off'); % , 'TolX', self.EPSILON
             t_gen = nan(self.sz);
             first_cell_idx = 1;
@@ -76,6 +84,7 @@ classdef solute_residence_generator
                     zeros(last_cell_idx - first_cell_idx + 1, 1), inf(last_cell_idx - first_cell_idx + 1, 1) , options);
                 first_cell_idx = last_cell_idx + 1;
             end
+            
             return
             
             function y = f(t)
@@ -117,11 +126,9 @@ classdef solute_residence_generator
             tmp_tmp = 0.25 .* (l .^ 2 + u .^ 2 .* t .^ 2) ./ (d .* t);
             tmp_erf = 0.5 .* erf(0.5 .* (l - u .* t) ./ tmp_sqrt_d_t);
             y = 0.5 + ...
-                tmp_sqrt_d_t .* exp(0.5 .* l .* u ./ d - tmp_tmp) ./ tmp_l_sqrt_pi - ...
-                tmp_sqrt_d_t .* exp(0.25 .* l .^ 2 ./ (d .* t) - tmp_tmp) ./ tmp_l_sqrt_pi - ...
-                u .* t .* tmp_erf ./ l - ...
-                0.5 .* u .* t .* erf(0.5 .* u .* sqrt(t) ./ sqrt(d)) ./ l + ...
-                tmp_erf;
+                tmp_sqrt_d_t ./ tmp_l_sqrt_pi .* ...
+                (exp(0.5 .* l .* u ./ d - tmp_tmp) - exp(0.25 .* l .^ 2 ./ (d .* t) - tmp_tmp)) - ...
+                u .* t ./ l .* (tmp_erf + 0.5 .* erf(0.5 .* u .* sqrt(t) ./ sqrt(d))) + tmp_erf;
             y(t == 0) = 1;
         end
         
@@ -141,7 +148,7 @@ classdef solute_residence_generator
                 num_cells = prod(sz);
                 batch_size = 50;
                 num_batches = ceil(num_cells / batch_size);
-                ini_t = ones(sz);
+                ini_t = 1e-1 ./ u .* ones(sz);
                 options = optimset('Display', 'off'); % , 'TolX', self.EPSILON
                 t_gen = nan(sz);
                 first_cell_idx = 1;

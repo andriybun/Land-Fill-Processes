@@ -10,6 +10,7 @@ classdef solute_transport_class
         EPSILON;
         domain_type;        % type of domain (1 - matrix, 2 - channel)
         ic_type;            % type of initial conditions (1 - initial concentration, or 2 - initial injection)
+        is_active;
         is_initialized;     % 
         u_ini;
         u_prev;
@@ -23,14 +24,19 @@ classdef solute_transport_class
     
     methods (Access = public)
         function self = solute_transport_class(l, d, c_ini, domain_type, ic_type)
-            self.EPSILON = 1e-9;
+            self.EPSILON = 1e-7;
             if nargin > 0
                 self.l = l;
-                self.d = d;
+                if numel(d) == 1
+                    self.d = repmat(d, size(l));
+                else
+                    self.d = d;
+                end
                 self.c_ini = c_ini;
                 self.c_curr = ones(size(l));             % initialize concentration
                 self.c_prev = self.c_curr;
                 self.domain_size = size(l);
+                self.is_active = true(self.domain_size);
                 self.is_initialized = false(self.domain_size);
                 self.udt = zeros(self.domain_size);
                 self.u_ini = nan(self.domain_size);
@@ -86,18 +92,23 @@ classdef solute_transport_class
             
             self.c_curr = self.c_prev;
             
+            comp_idx = self.is_initialized & self.is_active;
+            
             switch self.domain_type
                 case 1
-                    self.c_curr(self.is_initialized) = self.pdf_handle(t(self.is_initialized), self.u_ini(self.is_initialized));
+                    self.c_curr(comp_idx) = self.pdf_handle(t(comp_idx), self.u_ini(comp_idx), comp_idx);
                     result(is_initial_step) = 0;
                 case 2
-                    ratio = u ./ self.u_ini;
+                    ratio = nan(self.domain_size);
+                    ratio(comp_idx) = u(comp_idx) ./ ...
+                        self.u_ini(comp_idx);
                     % tweak time axis
-                    self.udt = self.udt + dt .* ratio;
-                    self.c_curr = self.pdf_handle(self.udt, self.u_ini);
+                    self.udt(comp_idx) = self.udt(comp_idx) + dt(comp_idx) .* ratio(comp_idx);
+                    self.c_curr(comp_idx) = self.pdf_handle(self.udt(comp_idx), self.u_ini(comp_idx), comp_idx);
             end
             
             result(~is_initial_step) = (self.c_curr(~is_initial_step) - self.c_prev(~is_initial_step));
+            self.is_active(self.c_curr < self.EPSILON) = false;
             
             result = result .* self.c_ini;
             
@@ -109,9 +120,14 @@ classdef solute_transport_class
     
     methods (Access = private)        
         % Initial concentration through cell, clean water input
-        function y = ini_concentration(self, t, u)
-            l = self.l;
-            d = self.d;
+        function y = ini_concentration(self, t, u, idx)
+            if nargin < 4
+                l = self.l;
+                d = self.d;
+            else
+                l = self.l(idx);
+                d = self.d(idx);
+            end
             % Integral concentration left in the interval (-infinity, l]
             tmp_sqrt_d_t = sqrt(d .* t);
             tmp_l_sqrt_pi = (l .* sqrt(pi));
@@ -128,9 +144,14 @@ classdef solute_transport_class
         
         % Zero initial concentration through cell, instantaneous injection
         % of solute at t = 0
-        function y = instant_influx(self, t, u)
-            l = self.l;
-            d = self.d;
+        function y = instant_influx(self, t, u, idx)
+            if nargin < 4
+                l = self.l;
+                d = self.d;
+            else
+                l = self.l(idx);
+                d = self.d(idx);
+            end
             % Integral concentration left in the interval (-infinity, l]
             y = 0.5 .* (1 - ...
                 2 .* sqrt(d) .* exp(0.5 .* l .* u ./ d - 0.25 .* (l .^ 2 + u .^ 2 .* t .^ 2) ./ (d .* t)) ./ (u .* sqrt(pi .* t)) + ...
