@@ -19,8 +19,6 @@ function main_1d_flow()
     geom_params.is_landfill_array = ones(geom_params.zn, geom_params.yn, geom_params.xn);
 %     geom_params.is_landfill_array(5:end) = 0;
     
-
-
     % Precipitation data
     file_name = '../Data/precipitation_daily_KNMI_20110908.txt';
     [precipitation_intensity_time_vector, time_params, start_date] = read_precipitation_data_csv(file_name);
@@ -34,14 +32,13 @@ function main_1d_flow()
     % Hydraulic parameters
     hydraulic_params = lognrnd_param_definer.hydraulic_params;
     hydraulic_params.k_sat_ref = hydraulic_params.k_sat;    % reference conductivity
-    hydraulic_params.k_sat = 1e-2;                          % relative conductivity compared to reference conductivity
+    hydraulic_params.k_sat = 1e-3;                          % relative conductivity compared to reference conductivity
     hydraulic_params.d = 1;                                 % diffusion_coefficient    
     
     % Bio-chemical composition parameters
     properties_array = generate_biogeochemical_properties_3d(geom_params, hydraulic_params);
     effective_saturation = properties_array.effective_saturation;
-% es = zeros(geom_params.zn, time_params.num_intervals);
-% es(:, 1) = effective_saturation;
+
     %% 
     dv = 1e-5;
     wp = water_particle_class(geom_params, dv, hydraulic_params, lognrnd_param_definer);
@@ -56,14 +53,19 @@ function main_1d_flow()
         [wp, leachate_flux(t_idx)] = wp.add_water_in(t(t_idx), in_flux, effective_saturation);
         conc = wp.get_concentrations();
         effective_saturation = alter_effective_saturation(properties_array.effective_saturation, conc, geom_params, hydraulic_params);
-% es(:, t_idx) = effective_saturation;
+
         if (mod(t_idx, progr) == 0)
             disp (t_idx / time_params.num_intervals * 100);
         end
     end
-% mesh(es);
-    plot(time_params.days_elapsed, smooth(leachate_flux, 1));
+
+%     plot(time_params.days_elapsed, precipitation_intensity_time_vector, 'r');
+%     hold on;
+    plot(time_params.days_elapsed, smooth(leachate_flux, 1), 'b');
+%     hold off;
     
+    %% TODO: include solute transfer
+
     toc;
     
     return

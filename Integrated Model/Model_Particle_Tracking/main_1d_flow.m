@@ -12,29 +12,29 @@ function main_1d_flow()
     time_params.time_discretization = 1 / time_params.intervals_per_day;                 % in days
     time_params.num_intervals = time_params.max_days * time_params.intervals_per_day;    % in {time step}
     time_params.days_elapsed = (0 : 1: (time_params.num_intervals-1)) / time_params.intervals_per_day;
-    num_intervals = time_params.num_intervals;
     
     % Flow params
     spatial_params = struct();
     spatial_params.dx = 1;
     spatial_params.dy = 1;
     spatial_params.dz = 1;                              % vertical dimensions of spatial_params.dz, forming column
-    spatial_params.zn = 8;
+    spatial_params.zn = 10;
     spatial_params.is_landfill_array = ones(spatial_params.zn, 1);
-    spatial_params.is_landfill_array(5:end) = 0;
+%     spatial_params.is_landfill_array(5:end) = 0;
     
-%     file_name = '../Data/precipitation_daily_KNMI_20110908.txt';
-%     [precipitation_intensity_time_vector, time_params, start_date] = read_precipitation_data_csv(file_name);
-    precipitation_intensity_time_vector = zeros(1, num_intervals);
-    precipitation_intensity_time_vector(1) = 1e-4;
+    file_name = '../Data/precipitation_daily_KNMI_20110908.txt';
+    [precipitation_intensity_time_vector, time_params, start_date] = read_precipitation_data_csv(file_name);
+%     precipitation_intensity_time_vector = zeros(1, num_intervals);
+%     precipitation_intensity_time_vector(1) = 1e-4;
+    num_intervals = time_params.num_intervals;
     
     % Determine probability distribution parameters corresponding to defined inputs:
-    lognrnd_param_definer = log_normal_params('../Common/opt_params_wt_matrix_domain.mat');
+    lognrnd_param_definer = log_normal_params('../Common/opt_params_wt_channel_domain.mat');
     
     % Fluid hydraulic parameters
     hydraulic_params = lognrnd_param_definer.hydraulic_params;
     hydraulic_params.k_sat_ref = hydraulic_params.k_sat;    % reference conductivity
-    hydraulic_params.k_sat = 50;                            % relative conductivity compared to reference conductivity
+    hydraulic_params.k_sat = 1e-3;                          % relative conductivity compared to reference conductivity
     hydraulic_params.d = 1;                                 % diffusion_coefficient
 
 	% initial SE
@@ -54,8 +54,10 @@ function main_1d_flow()
         end
     end
 
-    plot(time_params.days_elapsed, leachate_flux);
-
+    hold on;
+    plot(time_params.days_elapsed, leachate_flux(:, end), 'g');
+    hold off;
+    
     return 
     
     function [leachate_intercell_array, properties_array] = transport_lognormal(leachate_intercell_array, t, properties_array, scale, ...

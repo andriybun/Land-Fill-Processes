@@ -58,7 +58,7 @@ classdef water_particle_class
         function [self, out_flux] = add_water_in(self, t, vol, se)
             % vol - volume of water per cell
             [self.mu, self.sigma] = self.lognrnd_param_definer.get_params(self.hydraulic_params.k_sat ./ self.dz, se);
-            [self, out_flux] = self.update(t, se);
+            [self, out_flux] = self.update(t);
             
             % number of newly created particles per cell
             np = ceil(vol / self.dv);
@@ -76,44 +76,33 @@ classdef water_particle_class
             % appending properties to the existing cells
             self.pos_arr = cat(1, self.pos_arr, tmp_pos_arr);
             self.t_out_arr = cat(1, self.t_out_arr, tmp_t_out_arr);
+            
+%             cond_idx = zeros(size(self.t_out_arr));
+%             cond_idx(end-total_np+1:end) = 1;
+%             dt = 1/24;
+%             cond_idx = cond_idx & (self.t_out_arr <= t + dt);
+%             while sum(cond_idx) > 0
+%                 [self, out_flux_tmp, cond_idx] = self.travel(t + dt, cond_idx);
+%                 out_flux = out_flux + out_flux_tmp;
+%                 cond_idx = cond_idx & (self.t_out_arr <= t + dt);
+%             end
         end
         
         function [self, out_flux] = update(self, t, se)
-            % Some indices of particles that change position
-            cond_idx = (self.t_out_arr <= t);
-            cond_idx_rep = repmat(cond_idx, [1, self.num_dims]);
-            cond_idx_3d = logical(horzcat(cond_idx, zeros(size(cond_idx, 1), self.num_dims - 1)));
-            
-            % Number of particles that change position
-            nel = sum(cond_idx);
-            
-            % Particles flow down, update position
-            self.pos_arr(cond_idx_3d) = self.pos_arr(cond_idx_3d) + 1;
-            if self.num_particles > 0
-                part_out_idx = (self.pos_arr(:, 1) > self.zn);
-                
-                % Calculate out flux
-                nel_out = sum(part_out_idx);
-                out_flux = nel_out * self.dv;
-                nel = nel - nel_out;
-                self.num_particles = self.num_particles - nel_out;
-                
-                % Get rid of particles that left the system
-                idx_out = find(part_out_idx);
-                self.pos_arr(idx_out, :) = [];
-                self.t_out_arr(part_out_idx, :) = [];
-                cond_idx(part_out_idx) = [];
-                cond_idx_rep(idx_out, :) = [];
-                
-                % Update exit time for particles that moved
-                tmp_pos = reshape(self.pos_arr(cond_idx_rep), [], self.num_dims);
-                
-                tmp_mu = self.sub_array(self.mu, tmp_pos);
-                tmp_sigma = self.sub_array(self.sigma, tmp_pos);
-                self.t_out_arr(cond_idx) = t + lognrnd(tmp_mu, tmp_sigma, nel, 1);
-            else
-                out_flux = 0;
+            if nargin > 2
+                [self.mu, self.sigma] = self.lognrnd_param_definer.get_params(self.hydraulic_params.k_sat ./ self.dz, se);
             end
+            
+            [self, out_flux, cond_idx] = self.travel(t);
+            
+%             dt = t - self.t_prev;
+%             cond_idx = cond_idx & (self.t_out_arr <= t + dt);
+%             while sum(cond_idx) > 0
+%                 [self, out_flux_tmp, cond_idx] = self.travel(t + dt, cond_idx);
+%                 out_flux = out_flux + out_flux_tmp;
+%                 cond_idx = cond_idx & (self.t_out_arr <= t + dt);
+%             end
+            
             self.t_prev = t;
         end
         
@@ -121,7 +110,10 @@ classdef water_particle_class
             conc = zeros(self.sz);
             for idx = 1:self.num_particles
                 c_idx = self.pos_arr(idx, :);
-                conc(c_idx) = conc(c_idx) + 1;
+                if numel(c_idx) == 2
+                    c_idx = cat(2, c_idx, 1);
+                end
+                conc(c_idx(1), c_idx(2), c_idx(3)) = conc(c_idx(1), c_idx(2), c_idx(3)) + 1;
             end
             conc = conc * self.dv;
         end
@@ -153,6 +145,46 @@ classdef water_particle_class
             end
         end
         
+        function [self, out_flux, cond_idx] = travel(self, t, cond_idx)
+            % Some indices of particles that change position
+            if nargin < 3
+                cond_idx = (self.t_out_arr <= t);
+            end
+            cond_idx_rep = repmat(cond_idx, [1, self.num_dims]);
+            cond_idx_3d = logical(horzcat(cond_idx, zeros(size(cond_idx, 1), self.num_dims - 1)));
+            
+            % Number of particles that change position
+            nel = sum(cond_idx);
+            
+            % Particles flow down, update position
+            self.pos_arr(cond_idx_3d) = self.pos_arr(cond_idx_3d) + 1;
+            if self.num_particles > 0
+                part_out_idx = (self.pos_arr(:, 1) > self.zn);
+                
+                % Calculate out flux
+                nel_out = sum(part_out_idx);
+                out_flux = nel_out * self.dv;
+                nel = nel - nel_out;
+                self.num_particles = self.num_particles - nel_out;
+                
+                % Get rid of particles that left the system
+                idx_out = find(part_out_idx);
+                self.pos_arr(idx_out, :) = [];
+                self.t_out_arr(part_out_idx, :) = [];
+                cond_idx(part_out_idx) = [];
+                cond_idx_rep(idx_out, :) = [];
+                
+                % Update exit time for particles that moved
+                tmp_pos = reshape(self.pos_arr(cond_idx_rep), [], self.num_dims);
+                
+                tmp_mu = self.sub_array(self.mu, tmp_pos);
+                tmp_sigma = self.sub_array(self.sigma, tmp_pos);
+                self.t_out_arr(cond_idx) = t + lognrnd(tmp_mu, tmp_sigma, nel, 1);
+
+            else
+                out_flux = 0;
+            end
+        end
     end
 end
 
