@@ -4,6 +4,7 @@ classdef log_normal_params
         se_low;             % minimum value for precomputed effective saturation
         se_hi;              % maximum value for precomputed effective saturation 
         hydraulic_params;   % van Genuchten parameters used for simulations
+        log_k_sat_ref;      % natural log of reference k_sat
     end
     
     methods
@@ -22,23 +23,7 @@ classdef log_normal_params
             end
             self.hydraulic_params = self.opt_params.van_genuchten_params;
             self.opt_params = rmfield(self.opt_params, 'van_genuchten_params');
-            
-%             %% Plotting graphs:
-%             clf;
-%             subplot(2, 2, 1);
-%             subplot('Position', [0.1 0.3 0.35 0.65]);
-%             plot(self.opt_params.saturation_effective_avg, self.opt_params.z);
-%             xlabel('Effective saturation');
-%             ylabel('Mu');
-%             subplot(2, 2, 2);
-%             subplot('Position', [0.6 0.3 0.35 0.65]);
-%             plot(self.opt_params.saturation_effective_avg, self.opt_params.v);
-%             xlabel('Effective saturation');
-%             ylabel('Sigma');
-%             annotation('textbox', [0.05, 0.05, 0.9, 0.1], 'String', sprintf('k_s_a_t = %3.2f, theta_r = %3.3f, theta_s = %3.3f, alpha = %3.2f, lambda = %3.2f', ...
-%                 self.hydraulic_params.k_sat, self.hydraulic_params.theta_r, self.hydraulic_params.theta_s, self.hydraulic_params.alpha, self.hydraulic_params.lambda));
-%             
-%             %% End plotting
+            self.log_k_sat_ref = log(self.hydraulic_params.k_sat);
         end
         
         function [mu, sigma] = get_params(self, k_sat, se)
@@ -53,8 +38,8 @@ classdef log_normal_params
             se = min(se, self.se_hi);
             se = max(se, self.se_low);
 
-            mu = - log(k_sat) + interp1(self.opt_params.saturation_effective_avg, self.opt_params.z, se);
-            sigma = interp1(self.opt_params.saturation_effective_avg, self.opt_params.v, se);
+            mu = self.log_k_sat_ref - log(k_sat) + interp1(self.opt_params.saturation_effective_avg, self.opt_params.mu, se);
+            sigma = interp1(self.opt_params.saturation_effective_avg, self.opt_params.sigma, se);
         end
     end
 end

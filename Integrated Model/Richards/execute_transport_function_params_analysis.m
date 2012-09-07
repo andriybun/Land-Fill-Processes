@@ -1,92 +1,95 @@
 function execute_transport_function_params_analysis()
     
-%     data_hc = load('data_hydro_conductivity_loop.mat');
+    addpath('../Common/');
+
+    domain_name = 'channel';
     domain_name = 'matrix';
-    data_wt = load(sprintf('../Common/data_wt_loop_%s_domain.mat', domain_name));
+    loop_type = 3;
+    loop_type_names = {'ksat', 'wt', 'length'};
+
+    data_wt = load(sprintf('../Common/data_%s_loop_%s_domain.mat', loop_type_names{loop_type}, domain_name));
     
 %     opt_params_hc = load('opt_params_hc.mat');
-    opt_params_wt = load(sprintf('../Common/opt_params_wt_%s_domain.mat', domain_name));
-    param_obj = log_normal_params(sprintf('../Common/opt_params_wt_%s_domain.mat', domain_name));
+    opt_params_wt = load(sprintf('../Common/opt_params_%s_%s_domain.mat', loop_type_names{loop_type}, domain_name));
+    param_obj = log_normal_params(sprintf('../Common/opt_params_%s_%s_domain.mat', loop_type_names{2}, domain_name));
     
     close all;
     
-    %% Water table loop
-    for i = 1:numel(data_wt.saturation_effective_avg)
-        t = data_wt.t_range(i, :);
-        [mu, sigm] = param_obj.get_params(1, data_wt.saturation_effective_avg(i));
-        out_flux_approx = opt_params_wt.ratio(i) * ...
-            out_flux_lognrnd_pdf(t, mu, sigm, 0);
-        close all;
-        hold on;
-        plot(t, data_wt.out_flux(i, :));
-        plot(t, out_flux_approx, 'g');
-        hold off;
-    end
+    %% Simple analysis
     
-%     %% General
-%     opt_params = opt_params_wt;
-%  
-%     figure(2);
-%     hold on;
-%     plot(data_wt.water_table_elevation_vector(4:end), opt_params.v(4:end), '-g*');
-%     plot(data_wt.water_table_elevation_vector(4:end), opt_params.z(4:end), '-b*');
-% %     plot(data_wt.water_table_elevation_vector(4:end), 1e+5 * opt_params.ratio(4:end), '-k*');
-% %     plot(data_wt.saturation_effective_avg(4:end), opt_params.v(4:end), '-g*');
-% %     plot(data_wt.saturation_effective_avg(4:end), opt_params.z(4:end), '-b*');
-% %     plot(data_wt.saturation_effective_avg(4:end), 1e+5 * opt_params.ratio(4:end), '-k*');
-%     hold off;
-
-    %% Hydraulic conductivity loop
-    for i = 1:numel(data_hc.k_sat_vector)
-        t = data_hc.t_range(i, :);
-%         out_flux_fickian = opt_params_hc.ratio(i) * ...
-%             out_flux_lognrnd_pdf(t, opt_params_hc.z(i), opt_params_hc.v(i), opt_params_hc.d(i));
-        [mu, sigm] = param_obj.get_params(data_hc.k_sat_vector(i), 0.3255);
-        out_flux_fickian = opt_params_hc.ratio(i) * ...
-            out_flux_lognrnd_pdf(t, mu, sigm, 0);
-        close all;
-        hold on;
-        plot(t, data_hc.out_flux(i, :));
-        plot(t, out_flux_fickian, 'g');
-        hold off;
+    switch loop_type
+        case 1
+            var_vector = opt_params_wt.k_sat_vector;
+            var_name = 'Hydraulic conductivity';
+            const_val = opt_params_wt.saturation_effective_avg(1);
+            const_name = 'S_e_f_f';
+        case 2
+            var_vector = opt_params_wt.saturation_effective_avg;
+            var_name = 'Effective saturation';
+            const_val = opt_params_wt.van_genuchten_params.k_sat;
+            const_name = 'k_s_a_t';
+        case 3
+            var_vector = data_wt.length_vector;
+            var_name = 'length';
+            const_val = opt_params_wt.saturation_effective_avg(1);
+            const_name = 'k_s_a_t = 1, S_e_f_f';
     end
-
-%     %% General
-%     opt_params = opt_params_hc;
-%  
+    var_vector = roundn(var_vector, -8);
+    
+    %%
+    plot(var_vector, opt_params_wt.mu);
+    hold on;
+    plot(var_vector, log(var_vector) * 2.5 - opt_params_wt.sigma .^ 2 ./ 2 + 2, 'g');
+    hold off;
+    %%
+    
+    figure('OuterPosition', [100, 100, 600, 400]);
+    subplot(2, 2, 1);
+    subplot('Position', [0.1 0.3 0.35 0.65]);
+    plot(var_vector, opt_params_wt.mu);
+%     if loop_type == 3
+%         hold on;
+%         plot(var_vector, opt_params_wt.saturation_effective_avg - 2, 'r');
+%         hold off
+%     end
+    xlabel(var_name);
+    ylabel('Mu');
+    subplot(2, 2, 2);
+    subplot('Position', [0.6 0.3 0.35 0.65]);
+    plot(var_vector, opt_params_wt.sigma);
+    xlabel(var_name);
+    ylabel('Sigma');
+    annotation('textbox', [0.1, 0.05, 0.85, 0.1], 'String', sprintf('%s = %3.3f, theta_r = %3.3f, theta_s = %3.3f, alpha = %3.2f, lambda = %3.2f', ...
+        const_name, const_val, opt_params_wt.van_genuchten_params.theta_r, opt_params_wt.van_genuchten_params.theta_s, ...
+        opt_params_wt.van_genuchten_params.alpha, opt_params_wt.van_genuchten_params.lambda));
+    
+%     %% Expression for mu
 %     figure(2);
+%     plot(var_vector, opt_params_wt.mu);
 %     hold on;
-%     plot(data_hc.k_sat_vector, opt_params.v, '-g*');
-%     plot(data_hc.k_sat_vector, opt_params.z, '-b*');
-%     plot(data_hc.k_sat_vector, 1e+5 * opt_params.ratio, '-k*');
+%     v = -1.85;
+%     plot(var_vector, log(1 ./ var_vector) + v, 'r');
 %     hold off;
-
+%     legend('mu', sprintf('log(1 / k_s_a_t) + %1.2f', v));
+    
+%     %% Water table loop
+%     for i = 1:numel(data_wt.saturation_effective_avg)
+%         t = data_wt.t_range(i, :);
+%         [mu, sigm] = param_obj.get_params(data_wt.k_sat_vector(i), data_wt.saturation_effective_avg(i));
+%         out_flux_approx = opt_params_wt.ratio(i) * ...
+%             out_flux_lognrnd_pdf(t, mu, sigm);
+%         close all;
+%         hold on;
+%         plot(t, data_wt.out_flux(i, :));
+%         plot(t, out_flux_approx, 'g');
+%         hold off;
+%     end
+    
     return
-    
-    function res = out_flux_fickian_pdf(t, zv, vv, dv)
-        res = -zv .* exp(-(zv - vv .* t).^2 ./ (4 .* dv .* t)) ./ (2 .* sqrt(pi .* dv .* t.^3));
-        res(1) = 0;
-    end
 
-    function res = out_flux_lognrnd_pdf(t, muv, sigmav, dummy)
+    function res = out_flux_lognrnd_pdf(t, muv, sigmav)
         res = -1 ./ (sqrt(2 * pi) .* sigmav .* t) .* exp(-(log(t) - muv).^2 ./ (2 .* sigmav.^2));
         res(1) = 0;
-    end
-
-    function res = se(hc, vg_par)
-        res = (1 + (vg_par.alpha .* hc).^vg_par.n).^(-vg_par.m) .* (hc > 0) + 1 .* (hc <= 0);
-    end
-
-    % Sigma of effective saturation
-    function y = sigma(se)
-        p1 = 4.4014;
-        p2 = -9.8347;
-        p3 = 8.0144;
-        p4 = -2.6853;
-        p5 = 0.20365;
-        p6 = 0.66483;
-        
-        y = p1 * se^5 + p2 * se^4 + p3 * se^3 + p4 * se^2 + p5 * se + p6;
     end
 
 end

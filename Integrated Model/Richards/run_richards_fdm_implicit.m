@@ -6,17 +6,54 @@
 %   * possibility to accumulate water above the system and flush it when
 %     this is possible.
 
-function [out_flux, saturation_effective_avg, t_max, vg_par, domain_name] = run_richards_fdm_implicit(water_table_elevation, k_sat, t_range, dt)
+function [out_flux, saturation_effective_avg, t_max, vg_par, domain_name] = run_richards_fdm_implicit(water_table_elevation, k_sat, t_range, ...
+                                                                                dt, k_sat_domain_switch, var_shock)
     %% Inputs
 
     tic;
     
     EPSILON = 1e-15;
     
+    %% Hydraulic params
+    if nargin == 0
+        vg_par.k_sat = 0.1;   % m/day
+    else
+        vg_par.k_sat = k_sat;
+    end
+    
+    if nargin < 5
+        k_sat_domain_switch = 10;
+    end
+    
+    if nargin < 6
+        var_shock = 0
+    end
+    
+    % Van Genuchten parameters
+    if vg_par.k_sat < k_sat_domain_switch
+        % Matrix domain
+        domain_name = 'matrix';
+        vg_par.alpha   = 2;
+        vg_par.theta_r = 0.15;
+        vg_par.theta_s = 0.5;
+        vg_par.lambda  = 0.4;
+        vg_par.n       = vg_par.lambda + 1;
+        vg_par.m       = vg_par.lambda ./ vg_par.n;
+    else
+        % Channel domain
+        domain_name = 'channel';
+        vg_par.alpha   = 2;
+        vg_par.theta_r = 0;
+        vg_par.theta_s = 0.01;
+        vg_par.lambda  = 0.4;
+        vg_par.n       = vg_par.lambda + 1;
+        vg_par.m       = vg_par.lambda ./ vg_par.n;
+    end
+    
     % Column size
     z_top = 0;
-    z_bot = -1;
-    
+    z_bot = -var_shock; % -1;
+
     % In flow into the system defined as a function below
 
     % Nodes/internodes
@@ -31,6 +68,14 @@ function [out_flux, saturation_effective_avg, t_max, vg_par, domain_name] = run_
     spatial.nn = nn;
     spatial.dzn = dzn;
     spatial.dzin = dzin;
+%     
+% %%
+%     expected_se = 0.5;
+%     
+%     f = @(water_table_elevation) calc_avg_se(water_table_elevation, zn, vg_par) - expected_se;
+%     water_table_elevation = fsolve(f, z_bot);
+% 
+% %%
 
     if nargin == 0
         % Position of water table, compare to the top of column
@@ -52,33 +97,6 @@ function [out_flux, saturation_effective_avg, t_max, vg_par, domain_name] = run_
     end
     num_time_steps = numel(t_range);
 
-    if nargin == 0
-        vg_par.k_sat = 0.1;   % m/day
-    else
-        vg_par.k_sat = k_sat;
-    end
-    
-    % Van Genuchten parameters
-    if vg_par.k_sat < 10
-        % Matrix domain
-        domain_name = 'matrix';
-        vg_par.alpha   = 2;
-        vg_par.theta_r = 0.15;
-        vg_par.theta_s = 0.5;
-        vg_par.lambda  = 0.4;
-        vg_par.n       = vg_par.lambda + 1;
-        vg_par.m       = vg_par.lambda ./ vg_par.n;
-    else
-        % Channel domain
-        domain_name = 'channel';
-        vg_par.alpha   = 2;
-        vg_par.theta_r = 0;
-        vg_par.theta_s = 0.01;
-        vg_par.lambda  = 0.4;
-        vg_par.n       = vg_par.lambda + 1;
-        vg_par.m       = vg_par.lambda ./ vg_par.n;
-    end
-    
     %% Initializing variables
     clc();
     close all;

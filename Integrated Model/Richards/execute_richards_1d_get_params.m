@@ -3,63 +3,50 @@ function execute_richards_1d_get_params
     EPSILON = 1e-8;
 
     close all;
-    domain_name = 'matrix';
-    data_wt = load(sprintf('../Common/data_wt_loop_%s_domain.mat', domain_name));
-%     data_hc = load('data_hydro_conductivity_loop.mat');
+    domain_name = 'channel';
+%     domain_name = 'matrix';
+    loop_type = 3;
+    loop_type_names = {'ksat', 'wt', 'length'};
 
-	%% Compare breakthrough and effective saturation
-%     alpha   = 0.9;
-% 	  theta_s = 0.368;
-%     theta_r = 0.102;
-%     lambda  = 2.1;
-%     n       = lambda + 1;
-%     m       = lambda / n;
-%     
-%     h = -2.5:0.1:1;
-%     hc = -h;
-%     se = (1 + abs(alpha .* hc).^n).^(-m) .* (hc > 0) + 1 .* (hc <= 0);
-%     se = 1 - (1 - se) .* 0.78 ./ 0.85;
-%     
-%     % Compute the effective saturation
-%     theta = se .* (theta_s - theta_r) + theta_r;
-% 
-%     hold on;
-%     plot(data_wt.water_table_elevation_vector, data_wt.saturation_effective_avg, 'b');
-%     plot(h, se, 'r');
-%     hold off;
-    
-    %% 
-    
-    t = data_wt.t_range;
-    
+    data_wt = load(sprintf('../Common/data_%s_loop_%s_domain.mat', loop_type_names{loop_type}, domain_name));
+
     %% %%%%%%
     %%%
-    %%%  Water table analysis
+    %%%  Parameters analysis
     %%%
     %%%%%%%%%
     
-    z_opt = zeros(size(data_wt.water_table_elevation_vector));
-    v_opt = zeros(size(data_wt.water_table_elevation_vector));
-    d_opt = zeros(size(data_wt.water_table_elevation_vector));
-    ratio_opt = zeros(size(data_wt.water_table_elevation_vector));
+    switch loop_type
+        case 1          % saturated conductivity
+            var_vector = data_wt.k_sat_vector;
+        case 2          % water table
+            var_vector = data_wt.water_table_elevation_vector;
+            data_wt.k_sat_vector = repmat(data_wt.van_genuchten_params.k_sat, size(var_vector));
+        case 3          % vG parameters
+            var_vector = data_wt.length_vector;
+            data_wt.k_sat_vector = repmat(data_wt.van_genuchten_params.k_sat, size(var_vector));
+    end
+    
+    mu_opt = zeros(size(var_vector));
+    sigma_opt = zeros(size(var_vector));
+    ratio_opt = zeros(size(var_vector));
     
     abs_diff = zeros(size(data_wt.out_flux));
     
-    for i = 1:numel(data_wt.water_table_elevation_vector)
+    for i = 1:numel(var_vector)
         t = data_wt.t_range(i, :);
-        [z_opt(i), v_opt(i), d_opt(i), ratio_opt(i)] = pick_params(t, data_wt.out_flux(i, :), data_wt.water_table_elevation_vector(i));
+        [mu_opt(i), sigma_opt(i), ratio_opt(i)] = pick_params(t, data_wt.out_flux(i, :));
 
-        z = z_opt(i);
-        v = v_opt(i);
-        d = d_opt(i);
+        mu = mu_opt(i);
+        sigma = sigma_opt(i);
         ratio = ratio_opt(i);
 
-        out_flux_fickian = ratio * out_flux_lognrnd_pdf(t, z, v, d);
+        out_flux_fickian = ratio * out_flux_lognrnd_pdf(t, mu, sigma);
         out_flux_fickian(1) = 0;
 
         abs_diff(i, :) = abs(data_wt.out_flux(i, :) - out_flux_fickian);
         
-        disp(i / numel(data_wt.water_table_elevation_vector) * 100);
+        disp(i / numel(var_vector) * 100);
         
         close all;
         plot(t, data_wt.out_flux(i, :));
@@ -68,60 +55,16 @@ function execute_richards_1d_get_params
         hold off;
     end
 
+    params_opt = struct ();
+    params_opt.saturation_effective_avg = data_wt.saturation_effective_avg;
+    params_opt.k_sat_vector = data_wt.k_sat_vector;
+    params_opt.van_genuchten_params = data_wt.van_genuchten_params;
+    params_opt.mu = mu_opt;
+    params_opt.sigma = sigma_opt;
+    params_opt.ratio = ratio_opt;
     
-%     idx = ((abs(data_wt.out_flux) >= EPSILON) & (abs_diff >= 1e+4 * EPSILON));
-%     rel_err = zeros(size(data_wt.out_flux));
-%     rel_err(idx) = abs_diff(idx) ./ abs(data_wt.out_flux(idx)) * 100;
-%     mesh(rel_err);
-%     disp(max(max(rel_err)));
+    save(sprintf('../Common/opt_params_%s_%s_domain.mat', loop_type_names{loop_type}, domain_name), '-struct', 'params_opt');
 
-    params_opt_wt = struct ();
-    params_opt_wt.saturation_effective_avg = data_wt.saturation_effective_avg;
-    params_opt_wt.van_genuchten_params = data_wt.van_genuchten_params;
-    params_opt_wt.z = z_opt;
-    params_opt_wt.v = v_opt;
-    params_opt_wt.d = d_opt;
-    params_opt_wt.ratio = ratio_opt;
-    
-    save(sprintf('../Common/opt_params_wt_%s_domain.mat', domain_name), '-struct', 'params_opt_wt');
-
-    %% %%%%%%
-    %%%
-    %%%  Hydraulic conductivity analysis
-    %%%
-    %%%%%%%%%
-    
-    t = data_hc.t_range;
-    
-    z_opt = zeros(size(data_hc.k_sat_vector));
-    v_opt = zeros(size(data_hc.k_sat_vector));
-    d_opt = zeros(size(data_hc.k_sat_vector));
-    ratio_opt = zeros(size(data_hc.k_sat_vector));
-    
-    for i = 1:numel(data_hc.k_sat_vector)
-        t = data_hc.t_range(i, :);
-        [z_opt(i), v_opt(i), d_opt(i), ratio_opt(i)] = pick_params(t, data_hc.out_flux(i, :), data_hc.k_sat_vector(i));
-
-        z = z_opt(i);
-        v = v_opt(i);
-        d = d_opt(i);
-        ratio = ratio_opt(i);
-        
-        disp(i / numel(data_hc.k_sat_vector) * 100);
-    end
-    
-    params_opt_hc = struct ();
-    params_opt_hc.k_sat_vector = data_hc.k_sat_vector;
-    params_opt_hc.z = z_opt;
-    params_opt_hc.v = v_opt;
-    params_opt_hc.d = d_opt;
-    params_opt_hc.ratio = ratio_opt;
-    
-    save('opt_params_hc.mat', '-struct', 'params_opt_hc');
-
-    copyfile('opt_params_wt.mat', '~/Dropbox/');
-    copyfile('opt_params_hc.mat', '~/Dropbox/');
-    
     return
     
     function [res, ratio] = square_diff(v1, v2, ratiox)
@@ -135,15 +78,14 @@ function execute_richards_1d_get_params
         res = sum((v1 - v2 .* ratio) .* (v1- v2 .* ratio));
     end
 
-    function [zx, vx, dx, ratiox] = pick_params(t, out_flx, var, ratioi)
+    function [mux, sigmax, ratiox] = pick_params(t, out_flx, ratioi)
         mn = sum(out_flx .* t) / sum(out_flx);
         varn = sum(out_flx .* (t - mn).^2) / sum(out_flx);
         params = get_mu_sigma([mn varn]);
-        zx = params(1); % 3.4 * log(-var) - 0.24; % -log(var) - 0.3915658;
-        vx = params(2); % 0.627; % 
-        dx = 0;
-        out_flux_fickian = out_flux_lognrnd_pdf(t, zx, vx, dx);
-        if nargin < 4
+        mux = params(1);
+        sigmax = params(2);
+        out_flux_fickian = out_flux_lognrnd_pdf(t, mux, sigmax);
+        if nargin < 3
             [~, ratiox] = square_diff(out_flx, out_flux_fickian);
         else
             ratiox = ratioi;
@@ -157,46 +99,10 @@ function execute_richards_1d_get_params
         mu = log(m * exp(- sigma * sigma / 2));
         params = [mu sigma];
     end
-%     function moments = get_mu_sigma(params)
-%         mu = params(1);
-%         sigma = params(2);
-%         moments = [
-%             exp(mu + sigma * sigma / 2)
-%             (exp(sigma * sigma) - 1) * exp(2 * mu + sigma * sigma);
-%         ];
-%     end
 
-    function res = out_flux_fickian_pdf(t, zv, vv, dv)
-        res = -zv .* exp(-(zv - vv .* t).^2 ./ (4 .* dv .* t)) ./ (2 .* sqrt(pi .* dv .* t.^3));
-        res(1) = 0;
-    end
-
-    function res = out_flux_lognrnd_pdf(t, muv, sigmav, dummy)
+    function res = out_flux_lognrnd_pdf(t, muv, sigmav)
         res = -1 ./ (sqrt(2 * pi) .* sigmav .* t) .* exp(-(log(t) - muv).^2 ./ (2 .* sigmav.^2));
         res(1) = 0;
     end
-    
-    function res = z_wt(wt)
-        res = - 80 * wt;
-    end
 
-    function res = v_wt(wt)
-        res = 7.19 * (-wt) ^ -2.49;
-    end
-
-    function res = d_wt(wt)
-        res = 202.3 * (-wt) ^ -1.36;
-    end
-
-    function res = z_hc(k_satur)
-        res = 15.8 * k_satur ^ -0.6;
-    end
-
-    function res = v_hc(k_satur)
-        res = 15.46 * k_satur ^ 0.37;
-    end
-
-    function res = d_hc(k_satur)
-        res = 80.565 * k_satur ^ -0.22;
-    end
 end
