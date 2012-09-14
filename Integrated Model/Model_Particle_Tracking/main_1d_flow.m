@@ -18,14 +18,15 @@ function main_1d_flow()
     spatial_params.dx = 1;
     spatial_params.dy = 1;
     spatial_params.dz = 1;                              % vertical dimensions of spatial_params.dz, forming column
-    spatial_params.zn = 10;
+    spatial_params.zn = 1;
     spatial_params.is_landfill_array = ones(spatial_params.zn, 1);
 %     spatial_params.is_landfill_array(5:end) = 0;
     
     file_name = '../Data/precipitation_daily_KNMI_20110908.txt';
     [precipitation_intensity_time_vector, time_params, start_date] = read_precipitation_data_csv(file_name);
-%     precipitation_intensity_time_vector = zeros(1, num_intervals);
-%     precipitation_intensity_time_vector(1) = 1e-4;
+    precipitation_intensity_time_vector = precipitation_intensity_time_vector * 1e-0; % * time_params.time_discretization
+%     precipitation_intensity_time_vector(:) = 0;
+%     precipitation_intensity_time_vector(1) = 1e-3;
     num_intervals = time_params.num_intervals;
     
     % Determine probability distribution parameters corresponding to defined inputs:
@@ -34,12 +35,12 @@ function main_1d_flow()
     % Fluid hydraulic parameters
     hydraulic_params = lognrnd_param_definer.hydraulic_params;
     hydraulic_params.k_sat_ref = hydraulic_params.k_sat;    % reference conductivity
-    hydraulic_params.k_sat = 1e-3;                          % relative conductivity compared to reference conductivity
+    hydraulic_params.k_sat = 1e-1;                          % relative conductivity compared to reference conductivity
     hydraulic_params.d = 1;                                 % diffusion_coefficient
 
 	% initial SE
     properties_array = generate_biogeochemical_properties_3d(spatial_params, hydraulic_params);
-
+    
     % Result
     leachate_flux = zeros(num_intervals, numel(spatial_params.is_landfill_array));
 
@@ -54,9 +55,35 @@ function main_1d_flow()
         end
     end
 
+%     % First
+%     close all;
+%     figure('OuterPosition', [500, 600, 600, 400]);
+%     hold on;
+%     subplot(1, 1, 1);
+%     subplot('Position', [0.1 0.27 0.85 0.63]);
+%     plot(time_params.days_elapsed, leachate_flux(:, end), 'b', 'LineWidth', 1.7); %  / time_params.time_discretization
+%     xlabel('Days');
+%     ylabel('Out flux');
+%     annotation('textbox', [0.1, 0.05, 0.85, 0.075], 'String', ...
+%         sprintf('K_s_a_t = %3.3f', hydraulic_params.k_sat));
+%     hold off;
+%     % End first
+
+    %% Second
     hold on;
-    plot(time_params.days_elapsed, leachate_flux(:, end), 'g');
+    plot(time_params.days_elapsed, leachate_flux(:, end), 'Color', [0.8, 0, 0], 'LineWidth', 1.3); %  / time_params.time_discretization
     hold off;
+    %% End second
+    
+%     %% Precipitation
+%     x = 45;
+%     figure('OuterPosition', [500, 600+x, 600, 400-x]);
+%     subplot(1, 1, 1);
+%     subplot('Position', [0.1 0.15 0.85 0.73]);
+%     plot(time_params.days_elapsed, precipitation_intensity_time_vector, 'b');
+%     xlabel('Days');
+%     ylabel('Precipitation');
+%     %% End precipitation
     
     return 
     
@@ -64,6 +91,10 @@ function main_1d_flow()
             spatial_params, hydraulic_params, time_params, lognrnd_param_definer)
         [mu, sigma] = lognrnd_param_definer.get_params(...
             hydraulic_params.k_sat ./ spatial_params.dz, properties_array.effective_saturation);
+        se = properties_array.effective_saturation(1, :, :);
+        k = hydraulic_params.k_sat .* se .^ (1/2) .* (1 - (1 - se .^ (1 ./ hydraulic_params.m)) .^ hydraulic_params.m) .^ 2;
+        in_flux_lim = k * time_params.time_discretization;
+        scale = min(scale, in_flux_lim);
         skip_cell_idx = (spatial_params.is_landfill_array == 0);
         mu(skip_cell_idx) = 0;
         sigma(skip_cell_idx) = Inf;

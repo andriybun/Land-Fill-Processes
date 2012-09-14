@@ -38,8 +38,8 @@ classdef log_normal_params
             se = min(se, self.se_hi);
             se = max(se, self.se_low);
 
-            mu = self.log_k_sat_ref - log(k_sat) + interp1(self.opt_params.saturation_effective_avg, self.opt_params.mu, se);
-            sigma = interp1(self.opt_params.saturation_effective_avg, self.opt_params.sigma, se);
+            mu = self.log_k_sat_ref - log(k_sat) + interp1(self.opt_params.saturation_effective_avg, self.opt_params.mu, se, 'spline');
+            sigma = interp1(self.opt_params.saturation_effective_avg, self.opt_params.sigma, se, 'spline');
         end
     end
 end

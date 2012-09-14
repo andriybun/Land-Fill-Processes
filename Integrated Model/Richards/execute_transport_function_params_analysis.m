@@ -2,9 +2,10 @@ function execute_transport_function_params_analysis()
     
     addpath('../Common/');
 
-    domain_name = 'channel';
     domain_name = 'matrix';
-    loop_type = 3;
+%     domain_name = 'channel';
+    
+    loop_type = 2;
     loop_type_names = {'ksat', 'wt', 'length'};
 
     data_wt = load(sprintf('../Common/data_%s_loop_%s_domain.mat', loop_type_names{loop_type}, domain_name));
@@ -37,9 +38,11 @@ function execute_transport_function_params_analysis()
     var_vector = roundn(var_vector, -8);
     
     %%
+    opt_params_tmp = load(sprintf('../Common/opt_params_%s_%s_domain.mat', loop_type_names{2}, domain_name));
     plot(var_vector, opt_params_wt.mu);
     hold on;
-    plot(var_vector, log(var_vector) * 2.5 - opt_params_wt.sigma .^ 2 ./ 2 + 2, 'g');
+%     plot(var_vector, -log(var_vector) + interp1(opt_params_tmp.saturation_effective_avg, opt_params_tmp.mu, 0.831629698067099, 'spline'), 'r');
+    plot(var_vector, -log(var_vector) + interp1(var_vector, opt_params_wt.mu, 1), 'g');
     hold off;
     %%
     
@@ -57,6 +60,9 @@ function execute_transport_function_params_analysis()
     subplot(2, 2, 2);
     subplot('Position', [0.6 0.3 0.35 0.65]);
     plot(var_vector, opt_params_wt.sigma);
+    ax = axis;
+    ax(3:4) = [0.58, 0.8];
+    axis(ax);
     xlabel(var_name);
     ylabel('Sigma');
     annotation('textbox', [0.1, 0.05, 0.85, 0.1], 'String', sprintf('%s = %3.3f, theta_r = %3.3f, theta_s = %3.3f, alpha = %3.2f, lambda = %3.2f', ...

@@ -2,5 +2,7 @@
 *.*~
 try_*
 *.mat
+*.fig
+*.tif
 .~lock.*
 *.bak

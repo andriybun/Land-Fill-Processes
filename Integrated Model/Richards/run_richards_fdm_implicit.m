@@ -16,17 +16,17 @@ function [out_flux, saturation_effective_avg, t_max, vg_par, domain_name] = run_
     
     %% Hydraulic params
     if nargin == 0
-        vg_par.k_sat = 0.1;   % m/day
+        vg_par.k_sat = 1e-1;   % m/day
     else
         vg_par.k_sat = k_sat;
     end
     
     if nargin < 5
-        k_sat_domain_switch = 10;
+        k_sat_domain_switch = vg_par.k_sat;
     end
     
     if nargin < 6
-        var_shock = 0
+        var_shock = 0;
     end
     
     % Van Genuchten parameters
@@ -52,7 +52,7 @@ function [out_flux, saturation_effective_avg, t_max, vg_par, domain_name] = run_
     
     % Column size
     z_top = 0;
-    z_bot = -var_shock; % -1;
+    z_bot = -1;
 
     % In flow into the system defined as a function below
 
@@ -68,7 +68,7 @@ function [out_flux, saturation_effective_avg, t_max, vg_par, domain_name] = run_
     spatial.nn = nn;
     spatial.dzn = dzn;
     spatial.dzin = dzin;
-%     
+    
 % %%
 %     expected_se = 0.5;
 %     
@@ -79,7 +79,7 @@ function [out_flux, saturation_effective_avg, t_max, vg_par, domain_name] = run_
 
     if nargin == 0
         % Position of water table, compare to the top of column
-        water_table_elevation = -9.95;
+        water_table_elevation = z_bot;
     end
     
     % Water pressure
@@ -91,8 +91,8 @@ function [out_flux, saturation_effective_avg, t_max, vg_par, domain_name] = run_
     
     % Time variables
     if nargin == 0
-        t_range = [0, 20]; % days
-        dt = 5e-2;
+        t_range = [0, 2]; % days
+        dt = 2e-2;
         t_range = t_range(1):dt:t_range(2);
     end
     num_time_steps = numel(t_range);
@@ -123,14 +123,24 @@ function [out_flux, saturation_effective_avg, t_max, vg_par, domain_name] = run_
 
     % Total relative moisture content
     saturation_effective_avg = mean((theta(:, 1) - vg_par.theta_r) / (vg_par.theta_s - vg_par.theta_r));
-%     saturation_effective_avg = sum((theta(:, 1) - vg_par.theta_r) .* (-spatial.dzin)) / ((vg_par.theta_s - vg_par.theta_r) * (z_top - z_bot));
+
+    %%
+    addpath('../Common/');
+    file_name = '../Data/precipitation_daily_KNMI_20110908.txt';
+    [precipitation_intensity_time_vector, time_params, start_date] = read_precipitation_data_csv(file_name);
+    t_range = time_params.days_elapsed;
+    num_time_steps = time_params.num_intervals;
+    precipitation_intensity_time_vector = -precipitation_intensity_time_vector * 1e-0 / time_params.time_discretization;
+%     precipitation_intensity_time_vector(:) = 0;
+%     precipitation_intensity_time_vector(2) = -1e-6;
+    %%
     
     %% Main time-loop
     for t_idx = 2:num_time_steps
         % Current time in seconds
         t = t_range(t_idx);
         dt = t_range(t_idx) - t_range(t_idx-1);
-        in_flx = -1e-5 * vg_par.k_sat * (t_idx == 2);%-in_flux(t_idx);
+        in_flx = precipitation_intensity_time_vector(t_idx); % -1e-4 * vg_par.k_sat * (t_idx == 2);
         
         % Solve system of equations
         theta_prev = theta(:, t_idx-1);
@@ -161,8 +171,17 @@ function [out_flux, saturation_effective_avg, t_max, vg_par, domain_name] = run_
         fprintf('%5.2f\n', t_idx / num_time_steps * 100);
     end
 
+    figure('OuterPosition', [500, 600, 600, 400]);
+    subplot(1, 1, 1);
+    subplot('Position', [0.1 0.27 0.85 0.63]);
+    plot(t_range, -out_flux, 'r', 'LineWidth', 1.7);
+    annotation('textbox', [0.1, 0.05, 0.85, 0.075], 'String', ...
+        sprintf('K_s_a_t = %3.3f', vg_par.k_sat));
+    xlabel('Days');
+    ylabel('Out flux');
+    
     %% Displaying plots
-    close all;
+%     close all;
 %     figure(1); hold on;
 %     [x, y] = meshgrid(spatial.zn, t_range);
 %     mesh(x, y, theta');
