@@ -52,12 +52,12 @@ function [out_flux, saturation_effective_avg, t_max, vg_par, domain_name] = run_
     
     % Column size
     z_top = 0;
-    z_bot = -1;
+    z_bot = -var_shock; % -1; % 
 
     % In flow into the system defined as a function below
 
     % Nodes/internodes
-    nn = 20;
+    nn = ceil(10 + (1 - z_bot) * 15);
     zin = linspace(z_top, z_bot, nn+1)';
     dzin = zin(2:end) - zin(1:end-1);
     nin = nn + 1;
@@ -70,7 +70,7 @@ function [out_flux, saturation_effective_avg, t_max, vg_par, domain_name] = run_
     spatial.dzin = dzin;
     
 % %%
-%     expected_se = 0.5;
+%     expected_se = 0.5;mean(reshape(fine_se, [], spatial_params.zn))'
 %     
 %     f = @(water_table_elevation) calc_avg_se(water_table_elevation, zn, vg_par) - expected_se;
 %     water_table_elevation = fsolve(f, z_bot);
@@ -87,7 +87,6 @@ function [out_flux, saturation_effective_avg, t_max, vg_par, domain_name] = run_
     
     % Water pressure below the system
     h_out = hw(end) - spatial.dzn(end);
-%     h_out = -1.5-zn(end);
     
     % Time variables
     if nargin == 0
@@ -99,7 +98,6 @@ function [out_flux, saturation_effective_avg, t_max, vg_par, domain_name] = run_
 
     %% Initializing variables
     clc();
-    close all;
 
     % Accumulate water on top of the system and create pressure above:
     accumulate_water = 0;
@@ -124,23 +122,23 @@ function [out_flux, saturation_effective_avg, t_max, vg_par, domain_name] = run_
     % Total relative moisture content
     saturation_effective_avg = mean((theta(:, 1) - vg_par.theta_r) / (vg_par.theta_s - vg_par.theta_r));
 
-    %%
-    addpath('../Common/');
-    file_name = '../Data/precipitation_daily_KNMI_20110908.txt';
-    [precipitation_intensity_time_vector, time_params, start_date] = read_precipitation_data_csv(file_name);
-    t_range = time_params.days_elapsed;
-    num_time_steps = time_params.num_intervals;
-    precipitation_intensity_time_vector = -precipitation_intensity_time_vector * 1e-0 / time_params.time_discretization;
+%     %%
+%     addpath('../Common/');
+%     file_name = '../Data/precipitation_daily_KNMI_20110908.txt';
+%     [precipitation_intensity_time_vector, time_params, start_date] = read_precipitation_data_csv(file_name);
+%     t_range = time_params.days_elapsed;
+%     num_time_steps = time_params.num_intervals;
+%     precipitation_intensity_time_vector = -precipitation_intensity_time_vector * 1e-2;
 %     precipitation_intensity_time_vector(:) = 0;
-%     precipitation_intensity_time_vector(2) = -1e-6;
-    %%
+%     precipitation_intensity_time_vector(2) = -1e-4;
+%     %%
     
     %% Main time-loop
     for t_idx = 2:num_time_steps
         % Current time in seconds
         t = t_range(t_idx);
         dt = t_range(t_idx) - t_range(t_idx-1);
-        in_flx = precipitation_intensity_time_vector(t_idx); % -1e-4 * vg_par.k_sat * (t_idx == 2);
+        in_flx = -1e-4 * vg_par.k_sat * (t_idx == 2); % precipitation_intensity_time_vector(t_idx);
         
         % Solve system of equations
         theta_prev = theta(:, t_idx-1);
@@ -171,6 +169,7 @@ function [out_flux, saturation_effective_avg, t_max, vg_par, domain_name] = run_
         fprintf('%5.2f\n', t_idx / num_time_steps * 100);
     end
 
+    close all;
     figure('OuterPosition', [500, 600, 600, 400]);
     subplot(1, 1, 1);
     subplot('Position', [0.1 0.27 0.85 0.63]);

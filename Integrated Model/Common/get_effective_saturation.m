@@ -9,7 +9,8 @@ function se_3d = get_effective_saturation(spatial_params, hydraulic_params)
     fine_dz = spatial_params.dz / ratio;
 
     % Calculate effective saturation for fine resolution of one column
-    hw = fine_dz * cumsum(ones(size(spatial_params.is_landfill_array, 1) * ratio, 1)) - spatial_params.zn - fine_dz / 2;
+    hw = fine_dz * cumsum(ones(size(spatial_params.is_landfill_array, 1) * ratio, 1)) - ...
+        spatial_params.zn * spatial_params.dz - fine_dz / 2;
     [~, ~, fine_se] = van_genuchten(hw, hydraulic_params);
     
     % Switch back to coarse resolution

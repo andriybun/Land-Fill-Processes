@@ -5,9 +5,9 @@ function execute_richards_1d_get_params
     close all;
     
     domain_name = 'matrix';
-    domain_name = 'channel';
+%     domain_name = 'channel';
     
-    loop_type = 2;
+    loop_type = 3;
     loop_type_names = {'ksat', 'wt', 'length'};
 
     data_wt = load(sprintf('../Common/data_%s_loop_%s_domain.mat', loop_type_names{loop_type}, domain_name));
