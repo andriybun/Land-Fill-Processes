@@ -10,7 +10,7 @@ function main_1d_2domain_flow()
     start_date.day = 1;
     time_params.max_days = 100;                                                           % number of simulation days
     time_params.intervals_per_day = 24;
-    time_params.time_discretization = 1 / time_params.intervals_per_day;                  % in days
+    time_params.dt = 1 / time_params.intervals_per_day;                  % in days
     time_params.num_intervals = time_params.max_days * time_params.intervals_per_day;     % in {time step}
     time_params.days_elapsed = (0 : 1: (time_params.num_intervals-1)) / time_params.intervals_per_day;
     
@@ -21,15 +21,16 @@ function main_1d_2domain_flow()
     geometry_params.dy = [1 - geometry_params.chan_width, geometry_params.chan_width];
     geometry_params.dz = 1;
     geometry_params.zn = 1;
-    geometry_params.is_landfill_array = ones(geometry_params.zn, 2);
+    geometry_params.is_landfill_array = ones(geometry_params.zn, 1);
+    geometry_params.column_height_array = geometry_params.dz * squeeze(sum(geometry_params.is_landfill_array, 1));
     
     file_name = '../Data/precipitation_daily_KNMI_20110908.txt';
     [precipitation_intensity_time_vector, time_params, start_date] = read_precipitation_data_csv(file_name);
-	precipitation_intensity_time_vector = precipitation_intensity_time_vector * 1e-2 * time_params.time_discretization;
+	precipitation_intensity_time_vector = precipitation_intensity_time_vector * 1e-2 * time_params.dt;
 %     % Input pulse:
 %     precipitation_intensity_time_vector = zeros(size(time_params.days_elapsed));
 %     precipitation_intensity_time_vector(:) = 0;
-%     precipitation_intensity_time_vector(1) = 1e-4 * time_params.time_discretization;
+%     precipitation_intensity_time_vector(1) = 1e-4 * time_params.dt;
 %     % End input pulse
     num_intervals = time_params.num_intervals;
     
@@ -70,7 +71,7 @@ function main_1d_2domain_flow()
     hold on;
     subplot(1, 1, 1);
     subplot('Position', [0.1 0.27 0.85 0.63]);
-    plot(time_params.days_elapsed, sum(leachate_flux(:, end, :), 3), 'Color', [0.6, 0.4, 0], 'LineWidth', 1.7); %  / time_params.time_discretization
+    plot(time_params.days_elapsed, sum(leachate_flux(:, end, :), 3), 'Color', [0.6, 0.4, 0], 'LineWidth', 1.7); %  / time_params.dt
     xlabel('Days');
     ylabel('Out flux');
     annotation('textbox', [0.1, 0.05, 0.85, 0.075], 'String', ...
@@ -114,7 +115,7 @@ function main_1d_2domain_flow()
         scale = scale * geometry_params.dy / sum(geometry_params.dy);
         
         % Limiting influx
-        in_flux_lim = k * time_params.time_discretization;
+        in_flux_lim = k * time_params.dt;
         scale = min(scale, in_flux_lim);
         if (t == 1)
             in_flux_cumulative(t) = sum(scale);
@@ -122,7 +123,7 @@ function main_1d_2domain_flow()
             in_flux_cumulative(t) = in_flux_cumulative(t-1) + sum(scale);
         end
 
-        t_vector = 0 : time_params.time_discretization : time_params.time_discretization * (num_intervals - t + 1);
+        t_vector = 0 : time_params.dt : time_params.dt * (num_intervals - t + 1);
         
         scale = scale .* geometry_params.dx .* geometry_params.dy;
         scale = reproduce(scale, numel(t_vector));

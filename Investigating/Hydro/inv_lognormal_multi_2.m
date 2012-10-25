@@ -23,6 +23,7 @@ function inv_lognormal_multi_2()
     
     %% Parameters of domains
     domain_params = struct();
+    domain_params.num_domains = 2;
     domain_params.matrix_domain_idx = 1;
     domain_params.channel_domain_idx = 2;
     % Fraction of water that initially enters matrix domain
