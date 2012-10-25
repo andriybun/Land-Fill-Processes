@@ -1,1 +1,0 @@
-INDEX VERSION 1.126+/home/andriybun/Workspace/Land-Fill-Processes/OrchestraInterface/src/.metadata/.plugins/org.eclipse.jdt.core
