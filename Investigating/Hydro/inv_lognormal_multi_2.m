@@ -14,7 +14,7 @@ function inv_lognormal_multi_2()
     geometry.num_domains = 2;
     
     % Volume of water through
-    flux_rate = 10;
+    flux_rate = 1;
     
     % Statistical params
     log_normal_params = struct();
@@ -25,7 +25,8 @@ function inv_lognormal_multi_2()
     domain_params = struct();
     domain_params.matrix_domain_idx = 1;
     domain_params.channel_domain_idx = 2;
-    entry_ratio_matrix = 0.5;
+    % Fraction of water that initially enters matrix domain
+    entry_ratio_matrix = 0.9;
     domain_params.entry_ratio = [entry_ratio_matrix; 1 - entry_ratio_matrix];
     
     tic;

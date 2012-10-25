@@ -11,7 +11,7 @@ function out_flux = hydro_1d_2domain_exchange(flux_rate, t_idx, geometry, domain
     sigma = log_normal_params.sigma;
 
     %% Calculating log-normal parameters for intermediate points:
-    % Picked function
+    % Picked function that defines distribution of mean average flow over cells
     pow = 1.7;
     steps = power(linspace(0, 1, num_cells + 1), pow);
     % Average flux time at the bottom (baseline)
@@ -27,7 +27,10 @@ function out_flux = hydro_1d_2domain_exchange(flux_rate, t_idx, geometry, domain
     %% Exchange rates function
     depth = 1:geometry.num_cells;
     exchange_rate_steps = zeros(geometry.num_domains, geometry.num_cells);
-    exchange_rate_steps(matrix_domain_idx, :) = depth .^ 1.5;
+    % Function that defines how much flux swithces from matrix to channel
+    % domain after each cell
+    exchange_rate_steps(matrix_domain_idx, :) = 1; %depth .^ 1.5;
+    % All water that enters channel domain flows out directly
     exchange_rate_steps(channel_domain_idx, 1) = 1;
     % Normalize:
     sm = repmat(sum(exchange_rate_steps, 2), [1, geometry.num_cells]);

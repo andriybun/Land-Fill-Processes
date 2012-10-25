@@ -1,4 +1,4 @@
-function test_lognormal_transport
+function inv_lognormal_transport
     mu_ref = -3;
     z = 10;
     mu = 3.5075 * log(z) + mu_ref - 1;
