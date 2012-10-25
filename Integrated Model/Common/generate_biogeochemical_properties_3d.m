@@ -1,13 +1,13 @@
-function properties_array = generate_biogeochemical_properties_3d(spatial_params, hydraulic_params)
-    is_landfill_array = spatial_params.is_landfill_array;
+function properties_array = generate_biogeochemical_properties_3d(geometry_params, hydraulic_params)
+    is_landfill_array = geometry_params.is_landfill_array;
     is_data_idx = (is_landfill_array > 0);
     sz = size(is_landfill_array);
     
     properties_array_soa = struct();
     if nargin < 2
-        properties_array_soa.effective_saturation = 0.3 * ones(sz);
+        properties_array_soa.effective_saturation = 0.3 * ones(size(geometry_params.column_height_array));
     else
-        properties_array_soa.effective_saturation = get_effective_saturation(spatial_params, hydraulic_params);
+        properties_array_soa.effective_saturation = get_effective_saturation(geometry_params, hydraulic_params);
     end
     
     %% STUB:

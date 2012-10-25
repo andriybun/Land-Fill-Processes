@@ -17,8 +17,8 @@ function UnsaturatedFlowPicardImplicit01
     % Spatial Discretization
     % x,y,z
     % Define internodal boundaries (include at least all soillayer boundaries)
-    zbot = -20;
-    zin = (0:-0.2:zbot)';  %soil profile until 5 meters depth
+    zbot = -10;
+    zin = (0:-0.05:zbot)';  %soil profile until 5 meters depth
     nin = length(zin);
     zn(1,1) = zin(1,1);
     zn(2:nin-2,1) = (zin(2:nin-2)+zin(3:nin-1))./2;
@@ -41,7 +41,7 @@ function UnsaturatedFlowPicardImplicit01
     %BoundaryPar.Trange = 15; %Temperature Amplitude (Kelvin)
     %BoundaryPar.tmin = 46; %Offset time for minimum temperature (from new year in day)
     BoundaryPar.qTop = @qBoundary;
-    BoundaryPar.Ksurf = 1; % 1e-2;
+    BoundaryPar.Ksurf = 1e-0;
     BoundaryPar.hamb = -0.95;
 
     %% Model initialization
@@ -63,7 +63,7 @@ function UnsaturatedFlowPicardImplicit01
     SoilPar.n_in(allin,1) = 1.9;
     SoilPar.thetaR_in(allin,1) = 0.04;
     SoilPar.thetaS_in(allin,1) = 0.4;
-    SoilPar.Ksat_in(allin,1) = 1; %1e-2; %m/d
+    SoilPar.Ksat_in(allin,1) = 1e-0; %m/d
 
     % model initial states;
     rhow = 1000; % kg/m3 density of water
@@ -75,8 +75,8 @@ function UnsaturatedFlowPicardImplicit01
     %% Dynamic loop (non-stationary model) %% Implicit solution with ode15i
     % Time Discretization
     % start time
-    dtIni = 5;
-    trange = [0:dtIni:3000]; % [0:1:4 5:5:550];
+    dtIni = 1;
+    trange = [0:dtIni:500]; % [0:1:4 5:5:550];
     dtmax = 20;
 
     tic
@@ -195,44 +195,45 @@ function UnsaturatedFlowPicardImplicit01
         factor = 1;
     end
     out_flux_normalized = qOut(:, minX:step:maxX) / factor;
+    figure(4);
     plot(Time, out_flux_normalized);
     sum(qOut(:, minX:step:maxX))'
 
-    [mu, sigma] = pick_params(Time, out_flux_normalized);
-    dif_prev = inf;
-    for idx = 1:numel(mu)
-        iters = 0;
-        while true && (iters < 1000)
-            sigma(idx) = sigma(idx) + 2e-3;
-            out_flux_lognorm = out_flux_lognrnd_pdf(Time, mu(idx), sigma(idx));
-            out_flux_lognorm(1) = 0;
-            dif = square_diff(out_flux_normalized(:, idx), out_flux_lognorm);
-            if dif > dif_prev
-                break
-            end
-            dif_prev = dif;
-            iters = iters + 1;
-        end
-    end
-    hold on;
-    plot(Time, out_flux_lognrnd_pdf(Time, mu, sigma), 'Color', [1, 0.5, 0.2]);
-    hold off;
+%     [mu, sigma] = pick_params(Time, out_flux_normalized);
+%     dif_prev = inf;
+%     for idx = 1:numel(mu)
+%         iters = 0;
+%         while true && (iters < 1000)
+%             sigma(idx) = sigma(idx) + 2e-3;
+%             out_flux_lognorm = out_flux_lognrnd_pdf(Time, mu(idx), sigma(idx));
+%             out_flux_lognorm(1) = 0;
+%             dif = square_diff(out_flux_normalized(:, idx), out_flux_lognorm);
+%             if dif > dif_prev
+%                 break
+%             end
+%             dif_prev = dif;
+%             iters = iters + 1;
+%         end
+%     end
+%     hold on;
+%     plot(Time, out_flux_lognrnd_pdf(Time, mu, sigma), 'Color', [1, 0.5, 0.2]);
+%     hold off;
+%     
+%     figure(2);
+%     subplot(2,1,1);
+%     plot(mu);
+%     subplot(2,1,2);
+%     plot(sigma);
     
-    figure(2);
-    subplot(2,1,1);
-    plot(mu);
-    subplot(2,1,2);
-    plot(sigma);
-    
-    figure(1)
-    clf
-    hold on
-    plot(hOut',zn);
-    %plot temperature as a function of depth for selected times
-    figure(2)
-    clf
-    hold on
-    plot(Time,hOut)
+%     figure(1)
+%     clf
+%     hold on
+%     plot(hOut',zn);
+%     %plot temperature as a function of depth for selected times
+%     figure(2)
+%     clf
+%     hold on
+%     plot(Time,hOut)
     
     return
 
