@@ -5,7 +5,7 @@ function [k, theta, se] = van_genuchten(hw, vg_par)
     theta_r = reproduce(hw, vg_par.theta_r);
     n       = reproduce(hw, vg_par.n);
     m       = reproduce(hw, vg_par.m);
-    k_sat   = reproduce(hw, vg_par.k_sat);
+z    k_sat   = reproduce(hw, vg_par.k_sat);
     
     % Calculate the capillary pressure
     hc = 0 - hw;
@@ -38,4 +38,4 @@ function [k, theta, se] = van_genuchten(hw, vg_par)
             throw(err);
         end
     end
-end
+endz

@@ -4,8 +4,8 @@ function inv_lognormal_multi_2()
     
     % Time params
     t_params = struct();
-    t_end = 200;
-    t_params.dt = 0.2;
+    t_end = 365;
+    t_params.dt = 1/24;
     t_params.t = 0:t_params.dt:t_end;
 
     % geometryetry
@@ -30,17 +30,16 @@ function inv_lognormal_multi_2()
     entry_ratio_matrix = 0.9;
     domain_params.entry_ratio = [entry_ratio_matrix; 1 - entry_ratio_matrix];
     
-    tic;
-    
     %% Baseline flux (log-normally distributed flux over all distance)
     t_idx = 1;
+    tic
     out_flux_no_exchange = hydro_1d_2domain(flux_rate, t_idx, geometry, domain_params, t_params, log_normal_params);
     out_flux_exchange = hydro_1d_2domain_exchange(flux_rate, t_idx, geometry, domain_params, t_params, log_normal_params);
-    
+    toc
+    tic
     t_idx = 300;
     out_flux_no_exchange = out_flux_no_exchange + hydro_1d_2domain(flux_rate, t_idx, geometry, domain_params, t_params, log_normal_params);
     out_flux_exchange = out_flux_exchange + hydro_1d_2domain_exchange(flux_rate, t_idx, geometry, domain_params, t_params, log_normal_params);
-    
     toc;
     
     %% Plotting
